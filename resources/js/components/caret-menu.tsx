@@ -73,7 +73,7 @@ export function CaretMenuPortal({
     testId,
     children,
 }: {
-    marker: 'mention' | 'slash';
+    marker: 'mention' | 'slash' | 'emoji';
     position: CaretMenuPosition;
     testId: string;
     children: ReactNode;
@@ -85,7 +85,9 @@ export function CaretMenuPortal({
             onMouseDown={(event) => event.preventDefault()}
             {...(marker === 'mention'
                 ? { 'data-mention-suggestions': true }
-                : { 'data-slash-suggestions': true })}
+                : marker === 'slash'
+                  ? { 'data-slash-suggestions': true }
+                  : { 'data-emoji-suggestions': true })}
             data-test={testId}
         >
             {children}

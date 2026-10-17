@@ -148,6 +148,12 @@ function mentionRows(tree: ReactElement): Element[] {
     );
 }
 
+function emojiRows(tree: ReactElement): Element[] {
+    return elements(tree).filter(
+        (element) => element.props['data-test'] === 'emoji-suggestion',
+    );
+}
+
 function searching(tree: ReactElement): boolean {
     return elements(tree).some((element) =>
         React.Children.toArray(element.props.children as ReactNode).includes(
@@ -336,6 +342,42 @@ test('poll is absent in replies and when no poll callback is given', () => {
     );
     assert.equal(row(type('/', { onPoll: undefined }), 'poll'), undefined);
     assert.ok(row(type('/', { onPoll: undefined }), 'code'));
+});
+
+test('typing a shortcode opens the emoji menu', () => {
+    const tree = type('ship it :sm');
+
+    assert.ok(menu(tree, 'emoji-suggestions'));
+    assert.ok(emojiRows(tree).length > 0);
+    assert.equal(row(tree, 'image'), undefined);
+});
+
+test('selecting an emoji inserts it and closes the menu', () => {
+    const tree = type('ship it :sm');
+    const suggestion = emojiRows(tree)[0]!;
+
+    (field(tree).props.ref as (element: unknown) => void)({
+        focus: vi.fn(),
+        setSelectionRange: vi.fn(),
+    });
+
+    (suggestion.props.onClick as () => void)();
+
+    const inserted = onValueChange.mock.lastCall?.[0] ?? '';
+
+    assert.ok(inserted.startsWith('ship it '));
+    assert.ok(!inserted.includes(':sm'));
+
+    const closed = render();
+
+    assert.equal(emojiRows(closed).length, 0);
+    assert.equal(menu(closed, 'emoji-suggestions'), undefined);
+});
+
+test('the emoji menu stays quiet inside code spans', () => {
+    const tree = type('`code :sm`');
+
+    assert.equal(menu(tree, 'emoji-suggestions'), undefined);
 });
 
 test('submitting disables every command', () => {

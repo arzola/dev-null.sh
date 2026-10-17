@@ -71,3 +71,24 @@ void test('slash commands are lowercase only and require a collapsed caret', () 
         null,
     );
 });
+
+void test('finds the emoji shortcode being typed in prose before the caret', () => {
+    assert.deepEqual(caretToken(at('hi :sm'), 'hi :sm'), {
+        kind: 'emoji',
+        start: 3,
+        query: 'sm',
+    });
+    assert.deepEqual(caretToken(at('ship :fire'), 'ship :fire'), {
+        kind: 'emoji',
+        start: 5,
+        query: 'fire',
+    });
+});
+
+void test('emoji stay quiet on times, one-letter shortcodes, and outside prose', () => {
+    assert.equal(caretToken(at('10:30'), '10:30'), null);
+    assert.equal(caretToken(at('a:bc'), 'a:bc'), null);
+    assert.equal(caretToken(at(':a'), ':a'), null);
+    assert.equal(caretToken(at('`x :sm`'), ''), null);
+    assert.equal(caretToken(at('hi :sm')), null);
+});

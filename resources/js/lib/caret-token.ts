@@ -5,8 +5,12 @@ const mentionBeforeCaretPattern =
 // The "/command" being typed right before the caret, at the start of the body or after whitespace.
 const slashBeforeCaretPattern = /(?:^|\s)\/([a-z-]*)$/;
 
+// The ":shortcode" being typed in prose right before the caret, from two characters on so times like 10:30 stay quiet.
+const emojiBeforeCaretPattern =
+    /(?:^|[^\p{L}\p{N}_:])(:([A-Za-z0-9_+-]{2,}))$/u;
+
 export type CaretToken = {
-    kind: 'mention' | 'slash';
+    kind: 'mention' | 'slash' | 'emoji';
     start: number;
     query: string;
 };
@@ -18,9 +22,13 @@ export type TextareaLike = {
 };
 
 /**
- * The token ("@handle" or "/command") being typed right before a collapsed caret, if any.
+ * The token ("@handle", "/command", or ":shortcode") being typed right before a collapsed caret, if any. The shortcode
+ * is matched against the prose before the caret (the caller strips code spans), so emoji never trigger inside code.
  */
-export function caretToken(textarea: TextareaLike): CaretToken | null {
+export function caretToken(
+    textarea: TextareaLike,
+    prose = '',
+): CaretToken | null {
     if (textarea.selectionStart !== textarea.selectionEnd) {
         return null;
     }
@@ -43,6 +51,16 @@ export function caretToken(textarea: TextareaLike): CaretToken | null {
             kind: 'slash',
             start: textarea.selectionStart - slash[1].length - 1,
             query: slash[1],
+        };
+    }
+
+    const emoji = prose.match(emojiBeforeCaretPattern);
+
+    if (emoji) {
+        return {
+            kind: 'emoji',
+            start: textarea.selectionStart - emoji[1].length,
+            query: emoji[2],
         };
     }
 

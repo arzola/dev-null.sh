@@ -12,7 +12,9 @@ import { caretMenuPosition } from '@/lib/caret-position';
 import type { CaretMenuPosition } from '@/lib/caret-position';
 import { caretToken } from '@/lib/caret-token';
 import type { CaretToken } from '@/lib/caret-token';
-import { emojifyInput } from '@/lib/emoji';
+import { typedProse } from '@/lib/code';
+import { emojifyInput, searchEmoji } from '@/lib/emoji';
+import type { EmojiSuggestion } from '@/lib/emoji';
 import {
     availableCommands,
     codeFenceInsertion,
@@ -34,8 +36,10 @@ const debounce = 120;
 const menuWidth = 288;
 const mentionMenuHeight = 320;
 const slashMenuHeight = 168;
+const emojiMenuHeight = 320;
 const mentionMenu = { width: menuWidth, height: mentionMenuHeight };
 const slashMenu = { width: menuWidth, height: slashMenuHeight };
+const emojiMenu = { width: menuWidth, height: emojiMenuHeight };
 const cache = new Map<string, User[]>();
 
 async function fetchSuggestions(
@@ -84,8 +88,9 @@ function Highlighted({ text, query }: { text: string; query: string }) {
 }
 
 /**
- * A textarea that suggests developers to mention as soon as "@" is typed, right under the "@", suggests slash
- * commands as soon as "/" is typed, and turns emoji shortcodes into emoji as they are typed.
+ * A textarea that suggests developers to mention as soon as "@" is typed, right under the "@", suggests emoji for the
+ * ":shortcode" being typed, suggests slash commands as soon as "/" is typed, and turns emoji shortcodes into emoji as
+ * they are typed.
  */
 export function MentionTextarea({
     ref,
@@ -117,6 +122,7 @@ export function MentionTextarea({
 
     const mention = token?.kind === 'mention' ? token : null;
     const slash = token?.kind === 'slash' ? token : null;
+    const emoji = token?.kind === 'emoji' ? token : null;
     const query = mention?.query.toLowerCase() ?? null;
 
     const setRefs = (element: HTMLTextAreaElement | null) => {
@@ -143,7 +149,11 @@ export function MentionTextarea({
     };
 
     const track = (textarea: HTMLTextAreaElement) => {
-        const next = caretToken(textarea);
+        const caret = textarea.selectionStart;
+        const next = caretToken(
+            textarea,
+            typedProse(textarea.value.slice(0, caret)).at(-1) ?? '',
+        );
 
         if (next === null) {
             setDismissedStart(null);
@@ -152,7 +162,11 @@ export function MentionTextarea({
             return;
         }
 
-        if (next.start !== token?.start || next.query !== token.query) {
+        if (
+            next.kind !== token?.kind ||
+            next.start !== token?.start ||
+            next.query !== token.query
+        ) {
             setActiveIndex(0);
         }
 
@@ -170,7 +184,13 @@ export function MentionTextarea({
         }
 
         setToken(next);
-        setPosition(caretMenuPosition(textarea, next.start, mentionMenu));
+        setPosition(
+            caretMenuPosition(
+                textarea,
+                next.start,
+                next.kind === 'mention' ? mentionMenu : emojiMenu,
+            ),
+        );
     };
 
     useEffect(() => {
@@ -205,7 +225,12 @@ export function MentionTextarea({
             return;
         }
 
-        const menu = token.kind === 'mention' ? mentionMenu : slashMenu;
+        const menu =
+            token.kind === 'mention'
+                ? mentionMenu
+                : token.kind === 'slash'
+                  ? slashMenu
+                  : emojiMenu;
 
         const reposition = () => {
             if (textareaRef.current) {
@@ -256,22 +281,25 @@ export function MentionTextarea({
         slashOptions.length > 0
             ? Math.min(activeIndex, slashOptions.length - 1)
             : 0;
+    const emojiQuery = emoji?.query.toLowerCase() ?? '';
+    const emojis = emoji === null ? [] : searchEmoji(emojiQuery);
+    const isEmojiOpen =
+        emoji !== null && position !== null && emojis.length > 0;
 
-    const select = (user: User) => {
+    const insert = (text: string, separator: string) => {
         const textarea = textareaRef.current;
 
-        if (!textarea || mention === null) {
+        if (!textarea || token === null) {
             return;
         }
 
-        const caret = mention.start + 1 + mention.query.length;
+        const caret = token.start + 1 + token.query.length;
         const after = value.slice(caret);
-        const handle = `@${user.username}`;
-        const separator = /^\s/u.test(after) ? '' : ' ';
-        let next = `${value.slice(0, mention.start)}${handle}${separator}${after}`;
+        const spacing = /^\s/u.test(after) ? '' : separator;
+        let next = `${value.slice(0, token.start)}${text}${spacing}${after}`;
 
         if (maxLength !== undefined && characterCount(next) > maxLength) {
-            next = `${value.slice(0, mention.start)}${handle}${after}`;
+            next = `${value.slice(0, token.start)}${text}${after}`;
         }
 
         if (maxLength !== undefined && characterCount(next) > maxLength) {
@@ -280,7 +308,7 @@ export function MentionTextarea({
             return;
         }
 
-        const nextCaret = mention.start + handle.length + 1;
+        const nextCaret = token.start + text.length + separator.length;
 
         onValueChange(next);
         close();
@@ -293,6 +321,11 @@ export function MentionTextarea({
             );
         });
     };
+
+    const select = (user: User) => insert(`@${user.username}`, ' ');
+
+    const selectEmoji = (suggestion: EmojiSuggestion) =>
+        insert(suggestion.emoji, '');
 
     const runSlash = (option: SlashOption): boolean => {
         if (slash === null || !option.enabled) {
@@ -427,6 +460,25 @@ export function MentionTextarea({
             return;
         }
 
+        if (
+            isEmojiOpen &&
+            handleCaretMenuKeydown(event, {
+                count: emojis.length,
+                activeIndex,
+                setActiveIndex,
+                onSelect: (index) => {
+                    const suggestion = emojis[index];
+
+                    if (suggestion) {
+                        selectEmoji(suggestion);
+                    }
+                },
+                onClose: close,
+            })
+        ) {
+            return;
+        }
+
         onKeyDown?.(event);
     };
 
@@ -435,7 +487,9 @@ export function MentionTextarea({
           `${id}-mention-${suggestions[activeIndex].id}`
         : isSlashOpen && slashOptions[slashIndex]
           ? `${id}-slash-${slashOptions[slashIndex].command.id}`
-          : undefined;
+          : isEmojiOpen && emojis[activeIndex]
+            ? `${id}-emoji-${emojis[activeIndex].name}`
+            : undefined;
 
     const isSearching = current?.query !== query;
 
@@ -486,7 +540,9 @@ export function MentionTextarea({
                         ? `${id}-mentions`
                         : isSlashOpen
                           ? `${id}-slash`
-                          : undefined
+                          : isEmojiOpen
+                            ? `${id}-emojis`
+                            : undefined
                 }
                 aria-activedescendant={activeId}
             />
@@ -646,6 +702,65 @@ export function MentionTextarea({
                                 </li>
                             );
                         })}
+                    </CaretMenuList>
+                </CaretMenuPortal>
+            )}
+
+            {isEmojiOpen && position && (
+                <CaretMenuPortal
+                    marker="emoji"
+                    position={position}
+                    testId="emoji-suggestions"
+                >
+                    <CaretMenuList
+                        id={`${id}-emojis`}
+                        label="Insert an emoji"
+                        activeIndex={activeIndex}
+                    >
+                        {emojis.map((suggestion, index) => (
+                            <li
+                                key={suggestion.name}
+                                id={`${id}-emoji-${suggestion.name}`}
+                                role="option"
+                                aria-selected={index === activeIndex}
+                                onMouseMove={() => setActiveIndex(index)}
+                                onClick={() => selectEmoji(suggestion)}
+                                className={cn(
+                                    'flex cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-1.5',
+                                    {
+                                        'bg-accent': index === activeIndex,
+                                    },
+                                )}
+                                data-test="emoji-suggestion"
+                            >
+                                <span
+                                    aria-hidden
+                                    className="w-6 shrink-0 text-center text-lg leading-none"
+                                >
+                                    {suggestion.emoji}
+                                </span>
+                                <span className="min-w-0 flex-1 truncate font-mono text-[13px] text-muted-foreground">
+                                    :
+                                    <Highlighted
+                                        text={suggestion.name}
+                                        query={emojiQuery}
+                                    />
+                                    :
+                                </span>
+                                <kbd
+                                    aria-hidden
+                                    className={cn(
+                                        'hidden shrink-0 font-mono text-xs text-muted-foreground opacity-0 sm:block',
+                                        {
+                                            'opacity-100':
+                                                index === activeIndex,
+                                        },
+                                    )}
+                                >
+                                    ↵
+                                </kbd>
+                            </li>
+                        ))}
                     </CaretMenuList>
                 </CaretMenuPortal>
             )}

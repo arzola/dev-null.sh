@@ -99,7 +99,7 @@ function elements(node: ReactNode): Element[] {
 
 function render() {
     cursor = 0;
-    const form = CommitComposer();
+    const form = CommitComposer({});
     const fields = elements(
         form.props.children({ processing: false, errors: {} }),
     );
@@ -136,7 +136,7 @@ test('preserves restored images and link cards while preventing scheduling', () 
         )!;
         assert.equal(picker.props.count, 1);
         const schedule = fields.find(
-            (element) => element.props['aria-controls'] === 'commit-schedule',
+            (element) => element.props['aria-controls'] === 'body-schedule',
         )!;
         assert.equal(schedule.props.disabled, true);
         assert.equal(
@@ -150,12 +150,14 @@ test('preserves restored images and link cards while preventing scheduling', () 
             1,
         );
 
-        form.props.onSuccess({ flash: {} });
+        form.props.onSuccess({
+            flash: { toast: { type: 'error', message: 'Slow down' } },
+        });
         assert.equal(draft.drop.mock.calls.length, 0);
         assert.deepEqual(draft.images, [image]);
         vi.stubGlobal('requestAnimationFrame', vi.fn());
         try {
-            form.props.onSuccess({ flash: { committed: { id: 'created' } } });
+            form.props.onSuccess({ flash: {} });
             assert.deepEqual(draft.images, []);
             assert.equal(draft.drop.mock.calls.length, 1);
         } finally {
@@ -198,7 +200,7 @@ test('removing restored images enables polls and successful posting resets the p
         assert.equal(
             view.fields.find(
                 (element) =>
-                    element.props['aria-controls'] === 'commit-schedule',
+                    element.props['aria-controls'] === 'body-schedule',
             )!.props.disabled,
             true,
         );
@@ -219,13 +221,15 @@ test('removing restored images enables polls and successful posting resets the p
             poll: { options: ['Tabs', 'Spaces'], duration: 1440 },
         };
         assert.deepEqual(view.form.props.transform(data), data);
-        view.form.props.onSuccess({ flash: {} });
+        view.form.props.onSuccess({
+            flash: { toast: { type: 'error', message: 'Slow down' } },
+        });
         assert.equal(draft.drop.mock.calls.length, 0);
         assert.ok(
             render().fields.some((element) => element.type === PollEditor),
         );
 
-        view.form.props.onSuccess({ flash: { committed: { id: 'created' } } });
+        view.form.props.onSuccess({ flash: {} });
         assert.equal(draft.drop.mock.calls.length, 1);
         assert.deepEqual(draft.images, []);
         view = render();
@@ -247,14 +251,14 @@ test('removing restored images enables polls and successful posting resets the p
 test('schedules plain text in UTC and keeps pasted images visible until removed before scheduling', () => {
     let view = render();
     const schedule = view.fields.find(
-        (element) => element.props['aria-controls'] === 'commit-schedule',
+        (element) => element.props['aria-controls'] === 'body-schedule',
     )!;
     assert.equal(schedule.props.disabled, false);
     (schedule.props.onClick as () => void)();
     view = render();
     const date = '2026-10-17T10:30';
     const dateInput = view.fields.find(
-        (element) => element.props.id === 'scheduled-at',
+        (element) => element.props.id === 'body-scheduled-at',
     )!;
     const setCustomValidity = vi.fn();
     (dateInput.props.onChange as (event: unknown) => void)({
