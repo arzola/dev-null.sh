@@ -26,6 +26,10 @@ return [
         'key' => env('OPENAI_API_KEY'),
     ],
 
+    'giphy' => [
+        'key' => env('GIPHY_KEY'),
+    ],
+
     'postmark' => [
         'key' => env('POSTMARK_API_KEY'),
     ],
