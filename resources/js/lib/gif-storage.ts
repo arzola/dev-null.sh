@@ -3,9 +3,7 @@ import { readStorage, writeStorage } from './storage.ts';
 
 const gifKey = (key: string): string => `${key}:gif`;
 
-/**
- * A stashed GIF is tiny JSON in localStorage, unlike stashed images, which are Files in IndexedDB.
- */
+/** A stashed GIF is tiny JSON in localStorage; images are Files in IndexedDB. */
 export function readStoredGif(key: string): GiphyAttachment | null {
     const raw = readStorage(gifKey(key));
 

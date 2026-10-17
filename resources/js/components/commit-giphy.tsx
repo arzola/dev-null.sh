@@ -1,9 +1,7 @@
 import { cn } from '@/lib/utils';
 import type { CommitGif } from '@/types/commit';
 
-/**
- * An attached GIPHY GIF, hotlinked exactly as GIPHY's API returned it, with the attribution its terms require.
- */
+/** An attached GIPHY GIF, hotlinked verbatim with its required attribution. */
 export function CommitGiphy({
     gif,
     className,

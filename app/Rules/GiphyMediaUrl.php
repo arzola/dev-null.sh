@@ -8,10 +8,8 @@ use Closure;
 use Illuminate\Contracts\Validation\ValidationRule;
 
 /**
- * GIPHY media URLs are stored and rendered verbatim, so only https URLs on GIPHY's media hosts pointing at a .gif
- * rendition are accepted. Query strings stay, as GIPHY's terms forbid stripping them; the path is not required to
- * carry the GIF id, since modern media URLs use opaque path tokens instead. Dot-segments (`.` and `..`) are rejected
- * so the `/media/` boundary still holds after browsers normalize the URL.
+ * Only https URLs on GIPHY's media hosts pointing at a .gif rendition. Query strings stay verbatim and dot-segments
+ * are rejected, so the `/media/` boundary holds after browsers normalize the URL.
  */
 final readonly class GiphyMediaUrl implements ValidationRule
 {

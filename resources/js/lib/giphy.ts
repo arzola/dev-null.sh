@@ -55,9 +55,7 @@ export function giphyTrendingUrl(key: string, offset = 0): string {
     return `${baseUrl}/trending?${params(key, offset)}`;
 }
 
-/**
- * GIPHY requires client-side API calls, so this runs in the browser with the shared key.
- */
+/** GIPHY requires client-side API calls, so this runs in the browser. */
 export async function fetchGifs(
     url: string,
     signal?: AbortSignal,
@@ -83,10 +81,7 @@ export type GiphyKeyValidation =
     | 'rate-limited'
     | 'unreachable';
 
-/**
- * Verifies a pasted key against GIPHY from the browser, so no key ever
- * reaches the server for validation. A throttled key is still a real key.
- */
+/** Verifies a pasted key from the browser; a throttled key is still real. */
 export async function validateGiphyKey(
     key: string,
 ): Promise<GiphyKeyValidation> {
@@ -109,9 +104,7 @@ export async function validateGiphyKey(
     return response.status === 429 ? 'rate-limited' : 'unreachable';
 }
 
-/**
- * The small fixed-height rendition keeps the picker grid light; bigger renditions stand in when it is missing.
- */
+/** Small fixed-height rendition for the picker grid. */
 export function previewUrlFor(result: GiphyResult): string | null {
     const rendition =
         result.images.fixed_height_small ??
@@ -122,9 +115,7 @@ export function previewUrlFor(result: GiphyResult): string | null {
     return rendition?.url ?? null;
 }
 
-/**
- * The stored rendition is always a .gif around feed size, and its URL is kept verbatim as GIPHY's terms require.
- */
+/** Stored rendition: a .gif around feed size, kept verbatim per GIPHY's terms. */
 export function attachmentFromResult(
     result: GiphyResult,
 ): GiphyAttachment | null {
@@ -148,9 +139,7 @@ export function attachmentFromResult(
     };
 }
 
-/**
- * The hidden fields every composer submits for an attached GIF, named exactly as the server validates them.
- */
+/** Hidden fields every composer submits for an attached GIF. */
 export function giphyFormFields(
     gif: GiphyAttachment,
 ): Record<string, string | number> {

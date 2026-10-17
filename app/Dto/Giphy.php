@@ -4,9 +4,7 @@ declare(strict_types=1);
 
 namespace App\Dto;
 
-/**
- * A GIF picked from GIPHY. URLs are kept exactly as GIPHY's API returned them, as its terms require.
- */
+/** A GIF picked from GIPHY; URLs kept exactly as its API returned them. */
 final readonly class Giphy
 {
     public function __construct(
