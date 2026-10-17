@@ -17,7 +17,10 @@ export type GiphyResult = {
     url: string;
     images: Partial<
         Record<
-            'downsized_medium' | 'downsized' | 'original' | 'fixed_height_small',
+            | 'downsized_medium'
+            | 'downsized'
+            | 'original'
+            | 'fixed_height_small',
             GiphyRendition
         >
     >;
