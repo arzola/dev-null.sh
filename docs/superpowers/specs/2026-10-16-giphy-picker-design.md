@@ -43,6 +43,8 @@ the metadata never refetches server-side, max one per commit, and it is tiny):
 | `giphy_page_url` | text | giphy.com page URL, for the attribution link |
 | `giphy_title` | string(300) | creator title → alt text |
 | `giphy_username` | string(100) | creator username, for attribution where available |
+| `giphy_width` | unsignedSmallInteger | rendition width, for layout stability and OG tags |
+| `giphy_height` | unsignedSmallInteger | rendition height, for layout stability and OG tags |
 
 **Rendition:** the stored `giphy_url` is always a **`.gif` rendition** (prefer
 `downsized_medium`, fall back to `downsized`, then `original`), so the `image/gif` MIME type
@@ -50,7 +52,7 @@ declared in Atom enclosures and OG tags is honest. Picker thumbnails use a small
 rendition and are never stored.
 
 **Serialization:** `Commit::toArray()` strips the raw `giphy_*` keys and appends a derived
-`gif` object — `{id, url, page_url, title, username} | null`. The existing tombstone branch
+`gif` object — `{id, url, page_url, title, username, width, height} | null`. The existing tombstone branch
 already whitelists only `id/parent_id/deleted_at/replies_count`, so deleted commits drop the
 GIF for free. Pending/rejected commits only ship to their author and admins (existing
 `isVisibleTo` gating), which covers GIF visibility — the URL is public on Giphy regardless.
@@ -63,9 +65,12 @@ tombstone semantics are unchanged.
 In `CreateCommitRequest` and `CreateCommitReplyRequest` (these cover commits, quotes, and
 replies; the CLI commit path does not accept attachments and is untouched):
 
-- `giphy_url`: `https` scheme, host matching `media\d*.giphy.com`, path starting
-  `/media/{giphy_id}/`, **query string allowed and preserved verbatim**, no fragment.
-- `giphy_id`: `[A-Za-z0-9]+`, max 64, and must match the id segment in `giphy_url`.
+- `giphy_url`: `https` scheme, host matching `media\d*.giphy.com`, path under `/media/`
+  ending in `.gif`, **query string allowed and preserved verbatim**, no fragment. (The path
+  is not required to contain `giphy_id`: modern Giphy media URLs use opaque `v1.…` path
+  tokens instead of the plain id. The host allowlist is the security boundary.)
+- `giphy_id`: `[A-Za-z0-9]+`, max 64.
+- `giphy_width`/`giphy_height`: positive integers, required with `giphy_id`.
 - `giphy_page_url`: `https`, host `giphy.com` or `www.giphy.com`.
 - `giphy_title` max 300, `giphy_username` max 100, both nullable.
 - The `giphy_*` fields arrive as a set — partial submissions are rejected.
@@ -83,7 +88,7 @@ All in `resources/js`, following the existing `commit-image-picker.tsx` patterns
 toolbar buttons, `data-test` attributes, Radix/shadcn `ui/*` primitives):
 
 - **`lib/giphy.ts`** — pure, node-testable: the `GiphyAttachment` type
-  (`{id, url, page_url, title, username}`), direct fetches to `api.giphy.com`
+  (`{id, url, page_url, title, username, width, height}`), direct fetches to `api.giphy.com`
   (`/v1/gifs/search`, `/v1/gifs/trending`, always `rating=g`), and
   `attachmentFromResult(item)` which picks the `.gif` rendition verbatim.
 - **`components/giphy-picker-dialog.tsx`** — Radix Dialog: debounced (~300 ms) search field,
@@ -127,7 +132,7 @@ as `CommitImages`:
 
 ## Server-side touchpoints (no Giphy calls, ever)
 
-- **Public API:** `CommitResource` gains `gif` (`{id, url, page_url, title, username} | null`),
+- **Public API:** `CommitResource` gains `gif` (`{id, url, page_url, title, username, width, height} | null`),
   mirroring how `images` are surfaced. Consumers load media directly from Giphy.
 - **OG metadata:** `PageMetadata::commitImages()` emits `giphy_url` as the OG image for GIF
   commits. Crawlers fetch Giphy directly — the permitted client-side pattern.
