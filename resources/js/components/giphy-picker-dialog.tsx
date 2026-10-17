@@ -121,7 +121,8 @@ export function GiphyPickerDialog({
                 )}
                 {status === 'rate-limited' && (
                     <p className="py-8 text-center text-sm text-muted-foreground">
-                        GIPHY is rate limiting searches. Try again shortly.
+                        You’ve hit your GIPHY key’s search rate limit. Try again
+                        shortly.
                     </p>
                 )}
                 {status === 'error' && (

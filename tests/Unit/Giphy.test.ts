@@ -6,6 +6,7 @@ import {
     giphySearchUrl,
     giphyTrendingUrl,
     previewUrlFor,
+    validateGiphyKey,
 } from '../../resources/js/lib/giphy.ts';
 import type { GiphyResult } from '../../resources/js/lib/giphy.ts';
 
@@ -102,4 +103,78 @@ await test('shapes the form fields the server expects', () => {
         giphy_width: 480,
         giphy_height: 270,
     });
+});
+
+const originalFetch = globalThis.fetch;
+
+function stubFetch(result: number | 'network'): string[] {
+    const calls: string[] = [];
+
+    globalThis.fetch = (async (input: RequestInfo | URL) => {
+        calls.push(String(input));
+
+        if (result === 'network') {
+            throw new TypeError('fetch failed');
+        }
+
+        return new Response('{}', { status: result });
+    }) as typeof fetch;
+
+    return calls;
+}
+
+function restoreFetch(): void {
+    globalThis.fetch = originalFetch;
+}
+
+await test('validates a key against the trending endpoint', async () => {
+    const calls = stubFetch(200);
+
+    try {
+        assert.equal(await validateGiphyKey('key-123'), 'valid');
+        assert.ok(calls[0]?.includes('api_key=key-123'));
+        assert.ok(calls[0]?.includes('rating=g'));
+    } finally {
+        restoreFetch();
+    }
+});
+
+await test('treats a refused key as invalid', async () => {
+    for (const status of [401, 403]) {
+        stubFetch(status);
+
+        try {
+            assert.equal(await validateGiphyKey('key-123'), 'invalid');
+        } finally {
+            restoreFetch();
+        }
+    }
+});
+
+await test('treats a throttled key as rate limited but real', async () => {
+    stubFetch(429);
+
+    try {
+        assert.equal(await validateGiphyKey('key-123'), 'rate-limited');
+    } finally {
+        restoreFetch();
+    }
+});
+
+await test('treats network failures and unexpected statuses as unreachable', async () => {
+    stubFetch('network');
+
+    try {
+        assert.equal(await validateGiphyKey('key-123'), 'unreachable');
+    } finally {
+        restoreFetch();
+    }
+
+    stubFetch(500);
+
+    try {
+        assert.equal(await validateGiphyKey('key-123'), 'unreachable');
+    } finally {
+        restoreFetch();
+    }
 });

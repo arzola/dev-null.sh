@@ -7,7 +7,7 @@ import type { GiphyAttachment } from '@/lib/giphy';
 import { cn } from '@/lib/utils';
 
 /**
- * Invisible without a configured GIPHY key, so self-hosters without one never see the feature.
+ * Invisible until the signed-in user connects their own GIPHY key in settings.
  */
 export function GiphyPickerButton({
     disabled,

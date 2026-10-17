@@ -28,7 +28,7 @@ export type GiphyResult = {
 
 export class GiphyRateLimited extends Error {
     constructor() {
-        super('GIPHY is rate limiting searches.');
+        super('Your GIPHY key is rate limiting searches.');
     }
 }
 
@@ -75,6 +75,38 @@ export async function fetchGifs(
     const data = (await response.json()) as { data: GiphyResult[] };
 
     return data.data;
+}
+
+export type GiphyKeyValidation =
+    | 'valid'
+    | 'invalid'
+    | 'rate-limited'
+    | 'unreachable';
+
+/**
+ * Verifies a pasted key against GIPHY from the browser, so no key ever
+ * reaches the server for validation. A throttled key is still a real key.
+ */
+export async function validateGiphyKey(
+    key: string,
+): Promise<GiphyKeyValidation> {
+    let response: Response;
+
+    try {
+        response = await fetch(giphyTrendingUrl(key));
+    } catch {
+        return 'unreachable';
+    }
+
+    if (response.ok) {
+        return 'valid';
+    }
+
+    if (response.status === 401 || response.status === 403) {
+        return 'invalid';
+    }
+
+    return response.status === 429 ? 'rate-limited' : 'unreachable';
 }
 
 /**
