@@ -1,9 +1,15 @@
 import type { ComponentProps, KeyboardEvent, Ref, SyntheticEvent } from 'react';
 import { useEffect, useId, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
 import MentionSuggestionController from '@/actions/App/Http/Controllers/MentionSuggestionController';
+import {
+    CaretMenuList,
+    CaretMenuPortal,
+    handleCaretMenuKeydown,
+} from '@/components/caret-menu';
 import { Spinner } from '@/components/ui/spinner';
 import { UserAvatar } from '@/components/user-avatar';
+import { caretMenuPosition } from '@/lib/caret-position';
+import type { CaretMenuPosition } from '@/lib/caret-position';
 import { caretToken } from '@/lib/caret-token';
 import { emojifyInput } from '@/lib/emoji';
 import { toastWhenThrottled } from '@/lib/throttle';
@@ -20,91 +26,11 @@ type Suggestions = {
     users: User[];
 };
 
-type Position = {
-    left: number;
-    top?: number;
-    bottom?: number;
-};
-
 const debounce = 120;
 const menuWidth = 288;
-const menuHeight = 320;
+const mentionMenuHeight = 320;
+const mentionMenu = { width: menuWidth, height: mentionMenuHeight };
 const cache = new Map<string, User[]>();
-
-// Every style that changes where text wraps, so the mirror below wraps exactly like the textarea.
-const mirroredProperties = [
-    'box-sizing',
-    'width',
-    'border-top-width',
-    'border-right-width',
-    'border-bottom-width',
-    'border-left-width',
-    'padding-top',
-    'padding-right',
-    'padding-bottom',
-    'padding-left',
-    'font-family',
-    'font-size',
-    'font-weight',
-    'font-style',
-    'font-stretch',
-    'font-feature-settings',
-    'font-variant',
-    'line-height',
-    'letter-spacing',
-    'word-spacing',
-    'text-transform',
-    'text-indent',
-    'tab-size',
-];
-
-/**
- * Where a character of the textarea is drawn, measured on a hidden copy of it that wraps the same way.
- */
-function characterRect(textarea: HTMLTextAreaElement, index: number) {
-    const style = window.getComputedStyle(textarea);
-    const mirror = document.createElement('div');
-    const marker = document.createElement('span');
-
-    mirroredProperties.forEach((property) =>
-        mirror.style.setProperty(property, style.getPropertyValue(property)),
-    );
-    mirror.style.position = 'absolute';
-    mirror.style.visibility = 'hidden';
-    mirror.style.top = '0';
-    mirror.style.left = '-9999px';
-    mirror.style.whiteSpace = 'pre-wrap';
-    mirror.style.overflowWrap = 'break-word';
-
-    mirror.textContent = textarea.value.slice(0, index);
-    marker.textContent = textarea.value.slice(index) || '.';
-    mirror.appendChild(marker);
-    document.body.appendChild(mirror);
-
-    const rect = textarea.getBoundingClientRect();
-    const lineHeight =
-        Number.parseFloat(style.lineHeight) ||
-        Number.parseFloat(style.fontSize) * 1.4;
-    const top = rect.top + marker.offsetTop - textarea.scrollTop;
-    const left = rect.left + marker.offsetLeft - textarea.scrollLeft;
-
-    mirror.remove();
-
-    return { top, left, bottom: top + lineHeight };
-}
-
-function positionFor(textarea: HTMLTextAreaElement, index: number): Position {
-    const character = characterRect(textarea, index);
-    const left = Math.min(
-        Math.max(character.left - 12, 8),
-        window.innerWidth - menuWidth - 8,
-    );
-
-    return character.bottom + 6 + menuHeight > window.innerHeight &&
-        character.top > menuHeight
-        ? { left, bottom: window.innerHeight - character.top + 6 }
-        : { left, top: character.bottom + 6 };
-}
 
 async function fetchSuggestions(
     query: string,
@@ -171,9 +97,8 @@ export function MentionTextarea({
 }) {
     const id = useId();
     const textareaRef = useRef<HTMLTextAreaElement>(null);
-    const listRef = useRef<HTMLUListElement>(null);
     const [mention, setMention] = useState<Mention | null>(null);
-    const [position, setPosition] = useState<Position | null>(null);
+    const [position, setPosition] = useState<CaretMenuPosition | null>(null);
     const [results, setResults] = useState<Suggestions | null>(null);
     const [activeIndex, setActiveIndex] = useState(0);
 
@@ -212,7 +137,7 @@ export function MentionTextarea({
         }
 
         setMention(next);
-        setPosition(positionFor(textarea, next.start));
+        setPosition(caretMenuPosition(textarea, next.start, mentionMenu));
     };
 
     useEffect(() => {
@@ -242,7 +167,13 @@ export function MentionTextarea({
 
         const reposition = () => {
             if (textareaRef.current) {
-                setPosition(positionFor(textareaRef.current, mention.start));
+                setPosition(
+                    caretMenuPosition(
+                        textareaRef.current,
+                        mention.start,
+                        mentionMenu,
+                    ),
+                );
             }
         };
 
@@ -259,12 +190,6 @@ export function MentionTextarea({
             window.removeEventListener('resize', reposition);
         };
     }, [mention]);
-
-    useEffect(() => {
-        listRef.current
-            ?.querySelector('[aria-selected="true"]')
-            ?.scrollIntoView({ block: 'nearest' });
-    }, [activeIndex]);
 
     const cached = query === null ? undefined : cache.get(query);
     const current =
@@ -314,43 +239,23 @@ export function MentionTextarea({
     };
 
     const handleKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
-        if (isOpen && !event.nativeEvent.isComposing) {
-            const hasModifier = event.metaKey || event.ctrlKey || event.altKey;
+        if (
+            isOpen &&
+            handleCaretMenuKeydown(event, {
+                count: suggestions.length,
+                activeIndex,
+                setActiveIndex,
+                onSelect: (index) => {
+                    const user = suggestions[index];
 
-            if (
-                (event.key === 'ArrowDown' || event.key === 'ArrowUp') &&
-                suggestions.length > 0
-            ) {
-                event.preventDefault();
-                const step = event.key === 'ArrowDown' ? 1 : -1;
-                setActiveIndex(
-                    (index) =>
-                        (index + step + suggestions.length) %
-                        suggestions.length,
-                );
-
-                return;
-            }
-
-            if (
-                (event.key === 'Enter' || event.key === 'Tab') &&
-                !hasModifier &&
-                !event.shiftKey &&
-                suggestions[activeIndex]
-            ) {
-                event.preventDefault();
-                select(suggestions[activeIndex]);
-
-                return;
-            }
-
-            if (event.key === 'Escape') {
-                event.preventDefault();
-                event.stopPropagation();
-                close();
-
-                return;
-            }
+                    if (user) {
+                        select(user);
+                    }
+                },
+                onClose: close,
+            })
+        ) {
+            return;
         }
 
         onKeyDown?.(event);
@@ -409,116 +314,107 @@ export function MentionTextarea({
                 aria-activedescendant={activeId}
             />
 
-            {isOpen &&
-                createPortal(
-                    <div
-                        className="pointer-events-auto fixed z-50 w-72 overflow-hidden rounded-xl border bg-popover text-popover-foreground shadow-[0_12px_32px_-12px_rgb(0_0_0/0.35)] motion-safe:animate-in motion-safe:fade-in-0 motion-safe:zoom-in-95"
-                        style={position}
-                        onMouseDown={(event) => event.preventDefault()}
-                        data-mention-suggestions
-                        data-test="mention-suggestions"
-                    >
-                        {suggestions.length > 0 ? (
-                            <ul
-                                ref={listRef}
-                                id={`${id}-mentions`}
-                                role="listbox"
-                                aria-label="Mention a developer"
-                                className="max-h-80 overflow-y-auto p-1.5"
-                            >
-                                {current?.query === '' && (
-                                    <li
-                                        role="presentation"
-                                        className="px-2.5 pt-1 pb-1.5 text-xs text-muted-foreground"
-                                    >
-                                        People you follow
-                                    </li>
-                                )}
-                                {suggestions.map((user, index) => (
-                                    <li
-                                        key={user.id}
-                                        id={`${id}-mention-${user.id}`}
-                                        role="option"
-                                        aria-selected={index === activeIndex}
-                                        onMouseMove={() =>
-                                            setActiveIndex(index)
-                                        }
-                                        onClick={() => select(user)}
-                                        className={cn(
-                                            'flex cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2',
-                                            {
-                                                'bg-accent':
-                                                    index === activeIndex,
-                                            },
-                                        )}
-                                        data-test="mention-suggestion"
-                                    >
-                                        <UserAvatar
-                                            user={user}
-                                            className="size-8 shrink-0"
-                                        />
-                                        <span className="min-w-0 flex-1">
-                                            <span className="block truncate text-sm font-semibold">
+            {isOpen && position && (
+                <CaretMenuPortal
+                    marker="mention"
+                    position={position}
+                    testId="mention-suggestions"
+                >
+                    {suggestions.length > 0 ? (
+                        <CaretMenuList
+                            id={`${id}-mentions`}
+                            label="Mention a developer"
+                            activeIndex={activeIndex}
+                        >
+                            {current?.query === '' && (
+                                <li
+                                    role="presentation"
+                                    className="px-2.5 pt-1 pb-1.5 text-xs text-muted-foreground"
+                                >
+                                    People you follow
+                                </li>
+                            )}
+                            {suggestions.map((user, index) => (
+                                <li
+                                    key={user.id}
+                                    id={`${id}-mention-${user.id}`}
+                                    role="option"
+                                    aria-selected={index === activeIndex}
+                                    onMouseMove={() => setActiveIndex(index)}
+                                    onClick={() => select(user)}
+                                    className={cn(
+                                        'flex cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2',
+                                        {
+                                            'bg-accent': index === activeIndex,
+                                        },
+                                    )}
+                                    data-test="mention-suggestion"
+                                >
+                                    <UserAvatar
+                                        user={user}
+                                        className="size-8 shrink-0"
+                                    />
+                                    <span className="min-w-0 flex-1">
+                                        <span className="block truncate text-sm font-semibold">
+                                            <Highlighted
+                                                text={user.name}
+                                                query={query ?? ''}
+                                            />
+                                        </span>
+                                        <span className="flex items-center gap-1 font-mono text-xs text-muted-foreground">
+                                            <span
+                                                aria-hidden
+                                                className="size-1.5 shrink-0 rounded-full"
+                                                style={{
+                                                    background: laneColor(
+                                                        user.lane,
+                                                    ),
+                                                }}
+                                            />
+                                            <span className="truncate">
+                                                @
                                                 <Highlighted
-                                                    text={user.name}
+                                                    text={user.username}
                                                     query={query ?? ''}
                                                 />
                                             </span>
-                                            <span className="flex items-center gap-1 font-mono text-xs text-muted-foreground">
-                                                <span
-                                                    aria-hidden
-                                                    className="size-1.5 shrink-0 rounded-full"
-                                                    style={{
-                                                        background: laneColor(
-                                                            user.lane,
-                                                        ),
-                                                    }}
-                                                />
-                                                <span className="truncate">
-                                                    @
-                                                    <Highlighted
-                                                        text={user.username}
-                                                        query={query ?? ''}
-                                                    />
-                                                </span>
-                                            </span>
                                         </span>
-                                        <kbd
-                                            aria-hidden
-                                            className={cn(
-                                                'hidden shrink-0 font-mono text-xs text-muted-foreground opacity-0 sm:block',
-                                                {
-                                                    'opacity-100':
-                                                        index === activeIndex,
-                                                },
-                                            )}
-                                        >
-                                            ↵
-                                        </kbd>
-                                    </li>
-                                ))}
-                            </ul>
-                        ) : (
-                            <div
-                                role="status"
-                                className="px-4 py-3 text-sm text-muted-foreground"
-                            >
-                                {isSearching ? (
-                                    <span className="flex items-center gap-2">
-                                        <Spinner className="size-3.5" />
-                                        Searching…
                                     </span>
-                                ) : (
-                                    <span className="font-mono text-[13px]">
-                                        fatal: no developers match '
-                                        {mention?.query}'
-                                    </span>
-                                )}
-                            </div>
-                        )}
-                    </div>,
-                    document.body,
-                )}
+                                    <kbd
+                                        aria-hidden
+                                        className={cn(
+                                            'hidden shrink-0 font-mono text-xs text-muted-foreground opacity-0 sm:block',
+                                            {
+                                                'opacity-100':
+                                                    index === activeIndex,
+                                            },
+                                        )}
+                                    >
+                                        ↵
+                                    </kbd>
+                                </li>
+                            ))}
+                        </CaretMenuList>
+                    ) : (
+                        <div
+                            role="status"
+                            className="px-4 py-3 text-sm text-muted-foreground"
+                        >
+                            {isSearching ? (
+                                <span className="flex items-center gap-2">
+                                    <Spinner className="size-3.5" />
+                                    Searching…
+                                </span>
+                            ) : (
+                                <span className="font-mono text-[13px]">
+                                    fatal: no developers match '{mention?.query}
+                                    '
+                                </span>
+                            )}
+                        </div>
+                    )}
+                </CaretMenuPortal>
+            )}
         </>
     );
 }
