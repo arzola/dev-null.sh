@@ -4,6 +4,7 @@ import { createPortal } from 'react-dom';
 import MentionSuggestionController from '@/actions/App/Http/Controllers/MentionSuggestionController';
 import { Spinner } from '@/components/ui/spinner';
 import { UserAvatar } from '@/components/user-avatar';
+import { caretToken } from '@/lib/caret-token';
 import { emojifyInput } from '@/lib/emoji';
 import { toastWhenThrottled } from '@/lib/throttle';
 import { characterCount, cn, laneColor, limitCharacters } from '@/lib/utils';
@@ -29,10 +30,6 @@ const debounce = 120;
 const menuWidth = 288;
 const menuHeight = 320;
 const cache = new Map<string, User[]>();
-
-// The "@handle" being typed right before the caret. Keep the rules in sync with app/Services/Mentions.php.
-const mentionBeforeCaretPattern =
-    /(?:^|[^\p{L}\p{N}_./@-])@([A-Za-z0-9][A-Za-z0-9-]{0,38}|)$/u;
 
 // Every style that changes where text wraps, so the mirror below wraps exactly like the textarea.
 const mirroredProperties = [
@@ -60,25 +57,6 @@ const mirroredProperties = [
     'text-indent',
     'tab-size',
 ];
-
-function mentionAt(textarea: HTMLTextAreaElement): Mention | null {
-    if (textarea.selectionStart !== textarea.selectionEnd) {
-        return null;
-    }
-
-    const match = textarea.value
-        .slice(0, textarea.selectionStart)
-        .match(mentionBeforeCaretPattern);
-
-    if (!match) {
-        return null;
-    }
-
-    return {
-        start: textarea.selectionStart - match[1].length - 1,
-        query: match[1],
-    };
-}
 
 /**
  * Where a character of the textarea is drawn, measured on a hidden copy of it that wraps the same way.
@@ -217,7 +195,11 @@ export function MentionTextarea({
     };
 
     const track = (textarea: HTMLTextAreaElement) => {
-        const next = mentionAt(textarea);
+        const token = caretToken(textarea);
+        const next =
+            token?.kind === 'mention'
+                ? { start: token.start, query: token.query }
+                : null;
 
         if (!next) {
             close();
