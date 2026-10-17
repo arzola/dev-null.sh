@@ -393,14 +393,19 @@ function CommitComposerBody({
                             aria-controls="commit-schedule"
                             disabled={
                                 processing ||
-                                (!isScheduling && (hasImages || poll !== null))
+                                (!isScheduling &&
+                                    (hasImages ||
+                                        poll !== null ||
+                                        stash.gif !== null))
                             }
                             title={
                                 !isScheduling && poll !== null
                                     ? 'Polls cannot be scheduled yet'
                                     : !isScheduling && hasImages
                                       ? "Images can't be scheduled yet"
-                                      : undefined
+                                      : !isScheduling && stash.gif !== null
+                                        ? "A commit with a GIF can't be scheduled yet"
+                                        : undefined
                             }
                             onClick={() => {
                                 setTimezone(

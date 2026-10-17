@@ -13,6 +13,7 @@ import CommitReplyController from '@/actions/App/Http/Controllers/CommitReplyCon
 import { BodyCounter } from '@/components/body-counter';
 import { BookmarkButton } from '@/components/bookmark-button';
 import { FoldedCommitBody } from '@/components/commit-body';
+import { CommitGiphy } from '@/components/commit-giphy';
 import {
     ImagePickerButton,
     ImagePickerPreviews,
@@ -1104,6 +1105,7 @@ function ReplyComposer({
                     />
                 )}
             </div>
+            {preview.isPreviewing && gif !== null && <CommitGiphy gif={gif} />}
             {!preview.isPreviewing && (
                 <EmojiSuggestionHint
                     suggestion={suggestion}

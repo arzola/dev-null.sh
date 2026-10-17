@@ -21,3 +21,11 @@ it('shares no giphy config without a key', function (): void {
         ->get(route('log.show', Log::Following))
         ->assertInertia(fn (Assert $page): Assert => $page->where('giphy', null));
 });
+
+it('shares no giphy config for a non-string key', function (): void {
+    config(['services.giphy.key' => true]);
+
+    $this->actingAs(User::factory()->create())
+        ->get(route('log.show', Log::Following))
+        ->assertInertia(fn (Assert $page): Assert => $page->where('giphy', null));
+});
