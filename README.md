@@ -54,6 +54,10 @@ A link card for a video, song or pen becomes a player that loads when clicked. T
 
 Twitch requires the embedding site's host, which is taken from `APP_URL`. To add a site, implement `App\Contracts\Services\EmbedProvider` and register it in `config/embeds.php`.
 
+### GIFs
+
+With a [GIPHY API key](https://developers.giphy.com) in `GIPHY_KEY`, every composer gains a GIF picker: search GIPHY and attach one GIF to a commit, reply, or quote — never alongside uploaded images or a poll. The browser talks to GIPHY directly (its terms require client-side calls, so the key ships to the client) and commits store only the GIF's URLs; nothing is downloaded or rehosted. Without a key the picker is hidden. Beta keys allow about 42 searches an hour; production use needs an approved key, which requires the "Powered By GIPHY" mark the picker already shows.
+
 ### Verify installation
 
 Run `composer test` to check linting, static analysis, type coverage, and tests. The code coverage check requires Xdebug or PCOV.
