@@ -93,6 +93,7 @@ final class User extends Authenticatable
         'pasteis_received' => 0,
         'pasteis_given_today' => 0,
         'pasteis_given_on' => null,
+        'giphy_key' => null,
     ];
 
     /**
