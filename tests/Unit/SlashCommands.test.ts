@@ -46,32 +46,30 @@ void test('poll is only offered on top-level commits', () => {
     }
 });
 
-void test('image is disabled with a reason by poll, scheduling, and the image limit', () => {
+void test('image is disabled with a reason by poll and the image limit', () => {
     const reason = (overrides: Partial<ComposerSurface>) =>
         availableCommands(surface(overrides)).find(
             (option) => option.command.id === 'image',
         )!.reason;
 
     assert.equal(reason({ hasPoll: true }), 'Remove the poll first');
-    assert.equal(
-        reason({ isScheduling: true }),
-        "Images can't be scheduled yet",
-    );
     assert.equal(reason({ imageCount: 3 }), 'Maximum of 3 images');
 });
 
-void test('poll is disabled with a reason by images, scheduling, and an existing poll', () => {
+void test('poll is disabled with a reason by images and an existing poll', () => {
     const reason = (overrides: Partial<ComposerSurface>) =>
         availableCommands(surface(overrides)).find(
             (option) => option.command.id === 'poll',
         )!.reason;
 
     assert.equal(reason({ imageCount: 1 }), 'Remove the images first');
-    assert.equal(
-        reason({ isScheduling: true }),
-        'Polls cannot be scheduled yet',
-    );
     assert.equal(reason({ hasPoll: true }), 'A poll is already added');
+});
+
+void test('scheduling keeps images and polls available', () => {
+    const options = availableCommands(surface({ isScheduling: true }));
+
+    assert.ok(options.every((option) => option.enabled));
 });
 
 void test('every command is disabled without a reason while submitting', () => {

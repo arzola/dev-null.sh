@@ -61,10 +61,6 @@ function disabledReason(
             return 'Remove the poll first';
         }
 
-        if (surface.isScheduling) {
-            return "Images can't be scheduled yet";
-        }
-
         if (surface.imageCount >= maxImages) {
             return 'Maximum of 3 images';
         }
@@ -79,10 +75,6 @@ function disabledReason(
 
         if (surface.imageCount > 0) {
             return 'Remove the images first';
-        }
-
-        if (surface.isScheduling) {
-            return 'Polls cannot be scheduled yet';
         }
 
         return null;

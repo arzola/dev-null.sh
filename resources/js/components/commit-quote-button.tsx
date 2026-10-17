@@ -5,6 +5,7 @@ import { useRef, useState } from 'react';
 import CommitController from '@/actions/App/Http/Controllers/CommitController';
 import { BodyCounter } from '@/components/body-counter';
 import {
+    ImageDropOverlay,
     ImagePickerButton,
     ImagePickerPreviews,
     imageErrorFrom,
@@ -119,7 +120,8 @@ function QuoteComposer({
     const secrets = useSecretWarning(body);
     const keys = useKeyLabels();
 
-    const isQuotable = characterCount(body.trim()) >= minBodyLength;
+    const isQuotable =
+        images.length > 0 || characterCount(body.trim()) >= minBodyLength;
 
     const submitOnModEnter = (event: KeyboardEvent<HTMLTextAreaElement>) => {
         if (event.key === 'Enter' && hasModKey(event) && isQuotable) {
@@ -149,9 +151,13 @@ function QuoteComposer({
                     event.preventDefault();
                 }
             }}
+            {...attachments.dropzone}
             className="gap-3 p-4 sm:max-w-xl sm:p-5"
             data-test="quote-composer"
         >
+            {attachments.isDraggingFiles && (
+                <ImageDropOverlay className="fixed" />
+            )}
             <DialogTitle className="text-base">
                 Quote @{commit.user.username}
             </DialogTitle>
@@ -216,8 +222,6 @@ function QuoteComposer({
                                     processing,
                                 }}
                                 onPaste={attachments.onPaste}
-                                onDragOver={attachments.onDragOver}
-                                onDrop={attachments.onDrop}
                                 onFocus={
                                     isRestored ? moveCaretToEnd : undefined
                                 }
