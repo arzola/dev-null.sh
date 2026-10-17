@@ -828,6 +828,31 @@ it('previews the images of a commit before its drawn card', function (): void {
         ->and(mb_strpos($content, $second->url()))->toBeLessThan(mb_strpos($content, route('commit-open-graph-image.show', [$user, $commit])));
 });
 
+it('uses the attached gif as an open graph image', function (): void {
+    $user = User::factory()->create(['username' => 'octocat', 'name' => 'The Octocat']);
+    $commit = Commit::factory()->for($user)->withGiphy()->create(['body' => 'Deal with it']);
+
+    $content = (string) $this->get(route('commit.show', [$user, $commit]))->assertOk()->getContent();
+
+    expect($content)
+        ->toContain('<meta property="og:image" content="https://media2.giphy.com/media/xT9IgzoKnwFNmISR8I/giphy-downsized-medium.gif?cid=abc123">
+                <meta property="og:image:type" content="image/gif">
+                <meta property="og:image:width" content="480">
+                <meta property="og:image:height" content="270">
+                <meta property="og:image:alt" content="Deal With It GIF">')
+        ->toContain('<meta name="twitter:image" content="https://media2.giphy.com/media/xT9IgzoKnwFNmISR8I/giphy-downsized-medium.gif?cid=abc123">')
+        ->toContain('"image":["https://media2.giphy.com/media/xT9IgzoKnwFNmISR8I/giphy-downsized-medium.gif?cid=abc123","'.route('commit-open-graph-image.show', [$user, $commit]).'?v=')
+        ->and(mb_strpos($content, 'https://media2.giphy.com/media/xT9IgzoKnwFNmISR8I/giphy-downsized-medium.gif?cid=abc123'))->toBeLessThan(mb_strpos($content, route('commit-open-graph-image.show', [$user, $commit])));
+});
+
+it('does not use a gif as an open graph image without an attached gif', function (): void {
+    $commit = Commit::factory()->create();
+
+    $content = (string) $this->get(route('commit.show', [$commit->user, $commit]))->assertOk()->getContent();
+
+    expect($content)->not->toContain('image/gif');
+});
+
 it('previews the drawn card of a commit without images', function (): void {
     $commit = Commit::factory()->create();
 
