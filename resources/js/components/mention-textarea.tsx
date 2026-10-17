@@ -11,15 +11,19 @@ import { UserAvatar } from '@/components/user-avatar';
 import { caretMenuPosition } from '@/lib/caret-position';
 import type { CaretMenuPosition } from '@/lib/caret-position';
 import { caretToken } from '@/lib/caret-token';
+import type { CaretToken } from '@/lib/caret-token';
 import { emojifyInput } from '@/lib/emoji';
+import {
+    availableCommands,
+    codeFenceInsertion,
+    consumeSlashToken,
+    filterCommands,
+    matchCommand,
+} from '@/lib/slash-commands';
+import type { ComposerSurface, SlashOption } from '@/lib/slash-commands';
 import { toastWhenThrottled } from '@/lib/throttle';
 import { characterCount, cn, laneColor, limitCharacters } from '@/lib/utils';
 import type { User } from '@/types';
-
-type Mention = {
-    start: number;
-    query: string;
-};
 
 type Suggestions = {
     query: string;
@@ -29,7 +33,9 @@ type Suggestions = {
 const debounce = 120;
 const menuWidth = 288;
 const mentionMenuHeight = 320;
+const slashMenuHeight = 168;
 const mentionMenu = { width: menuWidth, height: mentionMenuHeight };
+const slashMenu = { width: menuWidth, height: slashMenuHeight };
 const cache = new Map<string, User[]>();
 
 async function fetchSuggestions(
@@ -78,8 +84,8 @@ function Highlighted({ text, query }: { text: string; query: string }) {
 }
 
 /**
- * A textarea that suggests developers to mention as soon as "@" is typed, right under the "@", and turns emoji
- * shortcodes into emoji as they are typed.
+ * A textarea that suggests developers to mention as soon as "@" is typed, right under the "@", suggests slash
+ * commands as soon as "/" is typed, and turns emoji shortcodes into emoji as they are typed.
  */
 export function MentionTextarea({
     ref,
@@ -88,20 +94,29 @@ export function MentionTextarea({
     onKeyDown,
     onSelect,
     onBlur,
+    onImage,
+    onPoll,
+    commandContext,
     maxLength,
     ...props
 }: Omit<ComponentProps<'textarea'>, 'value' | 'onChange'> & {
     ref?: Ref<HTMLTextAreaElement>;
     value: string;
     onValueChange: (value: string) => void;
+    onImage?: () => void;
+    onPoll?: () => void;
+    commandContext?: ComposerSurface;
 }) {
     const id = useId();
     const textareaRef = useRef<HTMLTextAreaElement>(null);
-    const [mention, setMention] = useState<Mention | null>(null);
+    const [token, setToken] = useState<CaretToken | null>(null);
+    const [dismissedStart, setDismissedStart] = useState<number | null>(null);
     const [position, setPosition] = useState<CaretMenuPosition | null>(null);
     const [results, setResults] = useState<Suggestions | null>(null);
     const [activeIndex, setActiveIndex] = useState(0);
 
+    const mention = token?.kind === 'mention' ? token : null;
+    const slash = token?.kind === 'slash' ? token : null;
     const query = mention?.query.toLowerCase() ?? null;
 
     const setRefs = (element: HTMLTextAreaElement | null) => {
@@ -115,28 +130,46 @@ export function MentionTextarea({
     };
 
     const close = () => {
-        setMention(null);
+        setToken(null);
         setPosition(null);
     };
 
-    const track = (textarea: HTMLTextAreaElement) => {
-        const token = caretToken(textarea);
-        const next =
-            token?.kind === 'mention'
-                ? { start: token.start, query: token.query }
-                : null;
+    const closeSlash = () => {
+        if (slash !== null) {
+            setDismissedStart(slash.start);
+        }
 
-        if (!next) {
+        close();
+    };
+
+    const track = (textarea: HTMLTextAreaElement) => {
+        const next = caretToken(textarea);
+
+        if (next === null) {
+            setDismissedStart(null);
             close();
 
             return;
         }
 
-        if (next.start !== mention?.start || next.query !== mention.query) {
+        if (next.start !== token?.start || next.query !== token.query) {
             setActiveIndex(0);
         }
 
-        setMention(next);
+        if (next.kind === 'slash') {
+            if (commandContext === undefined || next.start === dismissedStart) {
+                close();
+
+                return;
+            }
+
+            setToken(next);
+            setPosition(caretMenuPosition(textarea, next.start, slashMenu));
+
+            return;
+        }
+
+        setToken(next);
         setPosition(caretMenuPosition(textarea, next.start, mentionMenu));
     };
 
@@ -161,18 +194,16 @@ export function MentionTextarea({
     }, [query]);
 
     useEffect(() => {
-        if (!mention) {
+        if (token === null) {
             return;
         }
+
+        const menu = token.kind === 'mention' ? mentionMenu : slashMenu;
 
         const reposition = () => {
             if (textareaRef.current) {
                 setPosition(
-                    caretMenuPosition(
-                        textareaRef.current,
-                        mention.start,
-                        mentionMenu,
-                    ),
+                    caretMenuPosition(textareaRef.current, token.start, menu),
                 );
             }
         };
@@ -189,7 +220,7 @@ export function MentionTextarea({
             });
             window.removeEventListener('resize', reposition);
         };
-    }, [mention]);
+    }, [token]);
 
     const cached = query === null ? undefined : cache.get(query);
     const current =
@@ -200,11 +231,29 @@ export function MentionTextarea({
         mention !== null &&
         position !== null &&
         (suggestions.length > 0 || query !== '');
+    const slashOptions =
+        slash !== null && commandContext !== undefined
+            ? filterCommands(
+                  availableCommands(commandContext),
+                  slash.query,
+              ).filter(
+                  (option) =>
+                      (option.command.id !== 'image' ||
+                          onImage !== undefined) &&
+                      (option.command.id !== 'poll' || onPoll !== undefined),
+              )
+            : [];
+    const isSlashOpen =
+        slash !== null && position !== null && slashOptions.length > 0;
+    const slashIndex =
+        slashOptions.length > 0
+            ? Math.min(activeIndex, slashOptions.length - 1)
+            : 0;
 
     const select = (user: User) => {
         const textarea = textareaRef.current;
 
-        if (!textarea || !mention) {
+        if (!textarea || mention === null) {
             return;
         }
 
@@ -238,7 +287,97 @@ export function MentionTextarea({
         });
     };
 
+    const runSlash = (option: SlashOption) => {
+        if (slash === null || !option.enabled) {
+            return;
+        }
+
+        if (option.command.id === 'code') {
+            const insertion = codeFenceInsertion(
+                value,
+                slash.start,
+                slash.start + slash.query.length + 1,
+            );
+
+            if (
+                maxLength !== undefined &&
+                characterCount(insertion.value) > maxLength
+            ) {
+                return;
+            }
+
+            onValueChange(insertion.value);
+            close();
+
+            requestAnimationFrame(() => {
+                const textarea = textareaRef.current;
+
+                if (textarea) {
+                    textarea.focus();
+                    textarea.setSelectionRange(
+                        insertion.caret,
+                        insertion.caret,
+                    );
+                }
+            });
+
+            return;
+        }
+
+        onValueChange(consumeSlashToken(value, slash.start, slash.query));
+        close();
+
+        requestAnimationFrame(() => textareaRef.current?.focus());
+
+        if (option.command.id === 'image') {
+            onImage?.();
+        }
+
+        if (option.command.id === 'poll') {
+            onPoll?.();
+        }
+    };
+
     const handleKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
+        if (
+            isSlashOpen &&
+            handleCaretMenuKeydown(event, {
+                count: slashOptions.length,
+                activeIndex: slashIndex,
+                setActiveIndex,
+                onSelect: (index) => {
+                    const option = slashOptions[index];
+
+                    if (option) {
+                        runSlash(option);
+                    }
+                },
+                onClose: closeSlash,
+            })
+        ) {
+            return;
+        }
+
+        if (
+            slash !== null &&
+            event.key === ' ' &&
+            !event.nativeEvent.isComposing
+        ) {
+            const exact = matchCommand(slash.query);
+            const option = exact
+                ? slashOptions.find(
+                      (candidate) => candidate.command.id === exact.id,
+                  )
+                : undefined;
+
+            if (option?.enabled) {
+                event.preventDefault();
+                runSlash(option);
+
+                return;
+            }
+        }
+
         if (
             isOpen &&
             handleCaretMenuKeydown(event, {
@@ -264,7 +403,9 @@ export function MentionTextarea({
     const activeId = isOpen
         ? suggestions[activeIndex] &&
           `${id}-mention-${suggestions[activeIndex].id}`
-        : undefined;
+        : isSlashOpen && slashOptions[slashIndex]
+          ? `${id}-slash-${slashOptions[slashIndex].command.id}`
+          : undefined;
 
     const isSearching = current?.query !== query;
 
@@ -310,7 +451,13 @@ export function MentionTextarea({
                 }}
                 onKeyDown={handleKeyDown}
                 aria-autocomplete="list"
-                aria-controls={isOpen ? `${id}-mentions` : undefined}
+                aria-controls={
+                    isOpen
+                        ? `${id}-mentions`
+                        : isSlashOpen
+                          ? `${id}-slash`
+                          : undefined
+                }
                 aria-activedescendant={activeId}
             />
 
@@ -413,6 +560,63 @@ export function MentionTextarea({
                             )}
                         </div>
                     )}
+                </CaretMenuPortal>
+            )}
+
+            {isSlashOpen && position && (
+                <CaretMenuPortal
+                    marker="slash"
+                    position={position}
+                    testId="slash-suggestions"
+                >
+                    <CaretMenuList
+                        id={`${id}-slash`}
+                        label="Slash commands"
+                        activeIndex={slashIndex}
+                    >
+                        {slashOptions.map((option, index) => {
+                            const Icon = option.command.icon;
+
+                            return (
+                                <li
+                                    key={option.command.id}
+                                    id={`${id}-slash-${option.command.id}`}
+                                    role="option"
+                                    aria-selected={index === slashIndex}
+                                    aria-disabled={
+                                        option.enabled ? undefined : true
+                                    }
+                                    onMouseMove={() => setActiveIndex(index)}
+                                    onClick={() => runSlash(option)}
+                                    className={cn(
+                                        'flex cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2',
+                                        {
+                                            'bg-accent':
+                                                index === slashIndex &&
+                                                option.enabled,
+                                            'cursor-not-allowed opacity-60':
+                                                !option.enabled,
+                                        },
+                                    )}
+                                    data-test="slash-command"
+                                >
+                                    <Icon
+                                        aria-hidden
+                                        className="size-4 shrink-0 text-muted-foreground"
+                                    />
+                                    <span className="min-w-0 flex-1">
+                                        <span className="block truncate text-sm font-semibold">
+                                            {`/${option.command.id}`}
+                                        </span>
+                                        <span className="block truncate text-xs text-muted-foreground">
+                                            {option.reason ??
+                                                option.command.description}
+                                        </span>
+                                    </span>
+                                </li>
+                            );
+                        })}
+                    </CaretMenuList>
                 </CaretMenuPortal>
             )}
         </>
