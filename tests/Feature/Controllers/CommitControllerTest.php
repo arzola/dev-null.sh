@@ -1282,6 +1282,8 @@ it('rejects a gif media url that is not on giphy', function (string $url): void 
     'with a fragment' => ['https://media2.giphy.com/media/xT9IgzoKnwFNmISR8I/giphy.gif#frag'],
     'with userinfo' => ['https://user@media2.giphy.com/media/xT9IgzoKnwFNmISR8I/giphy.gif'],
     'with a port' => ['https://media2.giphy.com:8443/media/xT9IgzoKnwFNmISR8I/giphy.gif'],
+    'dot-segment traversal' => ['https://media2.giphy.com/media/../avatars/evil.gif'],
+    'single-dot segment' => ['https://media2.giphy.com/media/./xT9IgzoKnwFNmISR8I/giphy.gif'],
 ]);
 
 it('rejects a partial gif submission', function (): void {
