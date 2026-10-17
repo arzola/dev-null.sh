@@ -40,6 +40,7 @@ use Illuminate\Support\Facades\DB;
  * @property-read CarbonInterface|null $onboarded_at
  * @property-read CarbonInterface|null $github_follows_imported_at
  * @property-read string|null $remember_token
+ * @property-read string|null $giphy_key
  * @property-read CarbonInterface|null $github_synced_at
  * @property-read CarbonInterface $created_at
  * @property-read CarbonInterface $updated_at
@@ -62,6 +63,7 @@ use Illuminate\Support\Facades\DB;
     'github_id',
     'email',
     'remember_token',
+    'giphy_key',
     'preferred_lane',
     'pasteis_mode',
     'pasteis_received',
@@ -120,6 +122,7 @@ final class User extends Authenticatable
             'onboarded_at' => 'datetime',
             'github_follows_imported_at' => 'datetime',
             'remember_token' => 'string',
+            'giphy_key' => 'encrypted',
             'github_synced_at' => 'datetime',
             'created_at' => 'datetime',
             'updated_at' => 'datetime',
