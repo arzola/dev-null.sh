@@ -56,7 +56,7 @@ Twitch requires the embedding site's host, which is taken from `APP_URL`. To add
 
 ### GIFs
 
-GIF search is bring-your-own-key: connect your own free [GIPHY API key](https://developers.giphy.com) under Settings → Profile → Giphy and every composer gains a GIF picker: search GIPHY and attach one GIF to a commit, reply, or quote — never alongside uploaded images or a poll. Searches run on the connected key and its quota, so no paid key is shared by the instance; without one the picker is hidden. The browser talks to GIPHY directly and commits store only the GIF's URLs and its metadata — nothing is downloaded or rehosted. Production use needs an approved key, which requires the "Powered By GIPHY" mark the picker already shows.
+GIF search is bring-your-own-key: connect your own free [GIPHY API key](https://developers.giphy.com) under Settings → Profile → Giphy and every composer gains a GIF picker: search GIPHY and attach one GIF to a commit, reply, or quote — never alongside uploaded images or a poll. Searches run on the connected key and its quota, so no paid key is shared by the instance; without one the picker is hidden. The browser talks to GIPHY directly and commits store only the GIF's URLs and its metadata — nothing is downloaded or rehosted.
 
 ### Verify installation
 
