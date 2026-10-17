@@ -951,6 +951,7 @@ function ReplyComposer({
         image_descriptions: [],
     });
     const textareaRef = useRef<HTMLTextAreaElement>(null);
+    const imageInputRef = useRef<HTMLInputElement>(null);
     const secrets = useSecretWarning(body);
     const isReplyable = characterCount(body.trim()) >= minBodyLength;
     const suggestion = suggestEmoji(body);
@@ -1064,6 +1065,14 @@ function ReplyComposer({
                     value={body}
                     onValueChange={updateBody}
                     onKeyDown={onKeyDown}
+                    onImage={() => imageInputRef.current?.click()}
+                    commandContext={{
+                        surface: 'reply',
+                        hasPoll: false,
+                        imageCount: images.length,
+                        isScheduling: false,
+                        processing,
+                    }}
                     onPaste={attachments.onPaste}
                     onDragOver={attachments.onDragOver}
                     onDrop={attachments.onDrop}
@@ -1123,6 +1132,7 @@ function ReplyComposer({
                         count={images.length}
                         disabled={processing}
                         onPick={attachments.attach}
+                        inputRef={imageInputRef}
                         className="size-8"
                     />
                     <PreviewToggle preview={preview} className="-ml-2 size-8" />

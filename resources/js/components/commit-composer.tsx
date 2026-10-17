@@ -108,7 +108,15 @@ function CommitComposerBody({
     const suggestion = suggestEmoji(body);
     const error = errors.body ?? errors.link_preview_url;
     const textareaRef = useRef<HTMLTextAreaElement>(null);
+    const imageInputRef = useRef<HTMLInputElement>(null);
     const preview = useComposerPreview({ body, textareaRef, isSubmittable });
+
+    const startPoll = () => {
+        setPoll(emptyPollDraft);
+        requestAnimationFrame(() =>
+            document.getElementById('poll-option-0')?.focus(),
+        );
+    };
 
     return (
         <div className="flex">
@@ -147,6 +155,15 @@ function CommitComposerBody({
                                 preview.handleShortcut(event) ||
                                 onKeyDown(event)
                             }
+                            onImage={() => imageInputRef.current?.click()}
+                            onPoll={startPoll}
+                            commandContext={{
+                                surface: 'commit',
+                                hasPoll: poll !== null,
+                                imageCount: attachments.images.length,
+                                isScheduling,
+                                processing,
+                            }}
                             onFocus={isRestored ? moveCaretToEnd : undefined}
                             maxLength={maxBodyLength}
                             placeholder={
@@ -292,6 +309,7 @@ function CommitComposerBody({
                                     count={attachments.images.length}
                                     disabled={processing || poll !== null}
                                     onPick={attachments.attach}
+                                    inputRef={imageInputRef}
                                     className="-ml-2"
                                 />
                             )}
@@ -305,14 +323,7 @@ function CommitComposerBody({
                                     hasImages ||
                                     isScheduling
                                 }
-                                onClick={() => {
-                                    setPoll(emptyPollDraft);
-                                    requestAnimationFrame(() =>
-                                        document
-                                            .getElementById('poll-option-0')
-                                            ?.focus(),
-                                    );
-                                }}
+                                onClick={startPoll}
                                 aria-label="Add poll"
                                 title={
                                     isScheduling
