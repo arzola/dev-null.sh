@@ -1237,3 +1237,116 @@ it('includes the images of a commit, its ancestors and its replies', function ()
             ->has('replies.data.0.images', 1)
             ->missing('commit.images.0.path'));
 });
+
+it('may attach a giphy gif to a commit', function (): void {
+    $user = User::factory()->create();
+
+    $response = $this->actingAs($user)->post(route('commit.store'), [
+        'body' => 'Shipping it',
+        'giphy_id' => 'xT9IgzoKnwFNmISR8I',
+        'giphy_url' => 'https://media2.giphy.com/media/v1.Y2lkPTc5MGI3NjEx/giphy-downsized-medium.gif?cid=abc123&rid=giphy.gif',
+        'giphy_page_url' => 'https://giphy.com/gifs/deal-with-it-xT9IgzoKnwFNmISR8I',
+        'giphy_title' => 'Deal With It GIF',
+        'giphy_username' => 'giphy',
+        'giphy_width' => 480,
+        'giphy_height' => 270,
+    ]);
+
+    $response->assertSessionHasNoErrors();
+
+    $commit = $user->commits()->sole();
+    expect($commit->giphy_id)->toBe('xT9IgzoKnwFNmISR8I')
+        ->and($commit->giphy_url)->toBe('https://media2.giphy.com/media/v1.Y2lkPTc5MGI3NjEx/giphy-downsized-medium.gif?cid=abc123&rid=giphy.gif')
+        ->and($commit->giphy_width)->toBe(480);
+});
+
+it('rejects a gif media url that is not on giphy', function (string $url): void {
+    $user = User::factory()->create();
+
+    $this->actingAs($user)->post(route('commit.store'), [
+        'body' => 'Nice try',
+        'giphy_id' => 'xT9IgzoKnwFNmISR8I',
+        'giphy_url' => $url,
+        'giphy_page_url' => 'https://giphy.com/gifs/deal-with-it-xT9IgzoKnwFNmISR8I',
+        'giphy_width' => 480,
+        'giphy_height' => 270,
+    ])->assertSessionHasErrors('giphy_url');
+
+    expect($user->commits()->count())->toBe(0);
+})->with([
+    'another host' => ['https://evil.example/media/xT9IgzoKnwFNmISR8I/giphy.gif'],
+    'lookalike host' => ['https://media2.giphy.com.evil.example/media/x/giphy.gif'],
+    'plain http' => ['http://media2.giphy.com/media/xT9IgzoKnwFNmISR8I/giphy.gif'],
+    'not a gif rendition' => ['https://media2.giphy.com/media/xT9IgzoKnwFNmISR8I/giphy.webp'],
+    'outside the media path' => ['https://media2.giphy.com/avatars/giphy.gif'],
+    'with a fragment' => ['https://media2.giphy.com/media/xT9IgzoKnwFNmISR8I/giphy.gif#frag'],
+    'with userinfo' => ['https://user@media2.giphy.com/media/xT9IgzoKnwFNmISR8I/giphy.gif'],
+    'with a port' => ['https://media2.giphy.com:8443/media/xT9IgzoKnwFNmISR8I/giphy.gif'],
+]);
+
+it('rejects a partial gif submission', function (): void {
+    $user = User::factory()->create();
+
+    $this->actingAs($user)->post(route('commit.store'), [
+        'body' => 'Half a gif',
+        'giphy_id' => 'xT9IgzoKnwFNmISR8I',
+    ])->assertSessionHasErrors(['giphy_url', 'giphy_page_url', 'giphy_width', 'giphy_height']);
+});
+
+it('rejects a gif alongside uploaded images', function (): void {
+    Storage::fake();
+
+    $user = User::factory()->create();
+
+    $this->actingAs($user)->post(route('commit.store'), [
+        'body' => 'Both at once',
+        'images' => [UploadedFile::fake()->image('cabin.jpg', 40, 30)],
+        'giphy_id' => 'xT9IgzoKnwFNmISR8I',
+        'giphy_url' => 'https://media2.giphy.com/media/xT9IgzoKnwFNmISR8I/giphy.gif',
+        'giphy_page_url' => 'https://giphy.com/gifs/deal-with-it-xT9IgzoKnwFNmISR8I',
+        'giphy_width' => 480,
+        'giphy_height' => 270,
+    ])->assertSessionHasErrors('giphy_id');
+});
+
+it('rejects a gif alongside a poll', function (): void {
+    $user = User::factory()->create();
+
+    $this->actingAs($user)->post(route('commit.store'), [
+        'body' => 'Gif or poll',
+        'poll' => ['options' => ['Yes', 'No'], 'duration' => 1440],
+        'giphy_id' => 'xT9IgzoKnwFNmISR8I',
+        'giphy_url' => 'https://media2.giphy.com/media/xT9IgzoKnwFNmISR8I/giphy.gif',
+        'giphy_page_url' => 'https://giphy.com/gifs/deal-with-it-xT9IgzoKnwFNmISR8I',
+        'giphy_width' => 480,
+        'giphy_height' => 270,
+    ])->assertSessionHasErrors('giphy_id');
+});
+
+it('may quote a commit with a gif attached', function (): void {
+    $user = User::factory()->create();
+    $quoted = Commit::factory()->create();
+
+    $this->actingAs($user)->post(route('commit.store'), [
+        'body' => 'Quoting with style',
+        'quoted_commit_id' => $quoted->id,
+        'giphy_id' => 'xT9IgzoKnwFNmISR8I',
+        'giphy_url' => 'https://media2.giphy.com/media/xT9IgzoKnwFNmISR8I/giphy.gif',
+        'giphy_page_url' => 'https://giphy.com/gifs/deal-with-it-xT9IgzoKnwFNmISR8I',
+        'giphy_width' => 480,
+        'giphy_height' => 270,
+    ])->assertSessionHasNoErrors();
+
+    expect($user->commits()->sole()->quoted_commit_id)->toBe($quoted->id);
+});
+
+it('shows the gif in the commit payload', function (): void {
+    $commit = Commit::factory()->withGiphy()->create();
+
+    $this->actingAs($commit->user)
+        ->get(route('commit.show', [$commit->user, $commit]))
+        ->assertInertia(fn ($page) => $page
+            ->where('commit.gif.id', 'xT9IgzoKnwFNmISR8I')
+            ->where('commit.gif.url', 'https://media2.giphy.com/media/xT9IgzoKnwFNmISR8I/giphy-downsized-medium.gif?cid=abc123')
+            ->missing('commit.giphy_url'));
+});
