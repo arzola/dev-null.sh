@@ -1,7 +1,7 @@
 import { Form, usePage } from '@inertiajs/react';
 import { Quote } from 'lucide-react';
 import type { KeyboardEvent } from 'react';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import CommitController from '@/actions/App/Http/Controllers/CommitController';
 import { BodyCounter } from '@/components/body-counter';
 import {
@@ -122,6 +122,12 @@ function QuoteComposer({
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const secrets = useSecretWarning(body);
     const keys = useKeyLabels();
+
+    useEffect(() => {
+        if (attachments.images.length > 0 && gif !== null) {
+            updateGif(null);
+        }
+    }, [attachments.images.length, gif, updateGif]);
 
     const isQuotable = characterCount(body.trim()) >= minBodyLength;
 

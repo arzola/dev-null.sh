@@ -972,6 +972,12 @@ function ReplyComposer({
         isSubmittable: isReplyable,
     });
 
+    useEffect(() => {
+        if (attachments.images.length > 0 && gif !== null) {
+            updateGif(null);
+        }
+    }, [attachments.images.length, gif, updateGif]);
+
     const returnFocusToCommit = () => {
         const commit =
             textareaRef.current?.closest<HTMLElement>('[data-commit]');

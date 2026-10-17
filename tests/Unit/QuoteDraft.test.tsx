@@ -23,6 +23,7 @@ const draft = {
 
 vi.doMock('react', () => ({
     ...React,
+    useEffect: () => {},
     useMemo: (factory: () => unknown) => factory(),
     useSyncExternalStore: (_subscribe: unknown, snapshot: () => unknown) =>
         snapshot(),

@@ -109,6 +109,7 @@ function CommitComposerBody({
     } = schedule;
     const hasImages = attachments.images.length > 0;
     const isSchedulingImages = isScheduling && hasImages;
+    const isSchedulingGif = isScheduling && !hasImages && stash.gif !== null;
     const isFilled = characterCount(body.trim()) >= minBodyLength;
     const suggestion = suggestEmoji(body);
     const error = errors.body ?? errors.link_preview_url;
@@ -227,7 +228,9 @@ function CommitComposerBody({
                             attachments.error ??
                             (isSchedulingImages
                                 ? "Images can't be scheduled yet. Remove them to schedule this commit."
-                                : imageErrorFrom(errors))
+                                : isSchedulingGif
+                                  ? "GIFs can't be scheduled yet. Remove it to schedule this commit."
+                                  : imageErrorFrom(errors))
                         }
                         className="mt-1"
                     />
@@ -471,10 +474,16 @@ export function CommitComposer() {
     const hasImages = attachments.images.length > 0;
     const isSubmittable =
         isCommittable &&
-        !(isScheduling && hasImages) &&
+        !(isScheduling && (hasImages || stash.gif !== null)) &&
         (!isScheduling || poll === null);
 
     useEffect(() => discardSeriesStash(user.id), [user.id]);
+
+    useEffect(() => {
+        if (attachments.images.length > 0 && stash.gif !== null) {
+            stash.updateGif(null);
+        }
+    }, [attachments.images.length, stash.gif, stash.updateGif]);
 
     const onKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
         if (event.key === 'Tab' && suggestEmoji(body) !== null) {
