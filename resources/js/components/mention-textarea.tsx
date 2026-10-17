@@ -174,6 +174,13 @@ export function MentionTextarea({
     };
 
     useEffect(() => {
+        if (dismissedStart !== null && value[dismissedStart] !== '/') {
+            // oxlint-disable-next-line react/set-state-in-effect
+            setDismissedStart(null);
+        }
+    }, [value, dismissedStart]);
+
+    useEffect(() => {
         if (query === null || cache.has(query)) {
             return;
         }
@@ -287,9 +294,9 @@ export function MentionTextarea({
         });
     };
 
-    const runSlash = (option: SlashOption) => {
+    const runSlash = (option: SlashOption): boolean => {
         if (slash === null || !option.enabled) {
-            return;
+            return false;
         }
 
         if (option.command.id === 'code') {
@@ -303,7 +310,7 @@ export function MentionTextarea({
                 maxLength !== undefined &&
                 characterCount(insertion.value) > maxLength
             ) {
-                return;
+                return false;
             }
 
             onValueChange(insertion.value);
@@ -321,7 +328,7 @@ export function MentionTextarea({
                 }
             });
 
-            return;
+            return true;
         }
 
         onValueChange(consumeSlashToken(value, slash.start, slash.query));
@@ -336,6 +343,29 @@ export function MentionTextarea({
         if (option.command.id === 'poll') {
             onPoll?.();
         }
+
+        return true;
+    };
+
+    const slashOptionFits = (index: number) => {
+        const option = slashOptions[index];
+
+        if (
+            option === undefined ||
+            option.command.id !== 'code' ||
+            maxLength === undefined ||
+            slash === null
+        ) {
+            return true;
+        }
+
+        const insertion = codeFenceInsertion(
+            value,
+            slash.start,
+            slash.start + slash.query.length + 1,
+        );
+
+        return characterCount(insertion.value) <= maxLength;
     };
 
     const handleKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
@@ -345,6 +375,7 @@ export function MentionTextarea({
                 count: slashOptions.length,
                 activeIndex: slashIndex,
                 setActiveIndex,
+                canSelect: slashOptionFits,
                 onSelect: (index) => {
                     const option = slashOptions[index];
 
@@ -370,9 +401,8 @@ export function MentionTextarea({
                   )
                 : undefined;
 
-            if (option?.enabled) {
+            if (option?.enabled && runSlash(option)) {
                 event.preventDefault();
-                runSlash(option);
 
                 return;
             }

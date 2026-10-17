@@ -142,6 +142,22 @@ function menu(tree: ReactElement, testId: string): Element | undefined {
     return elements(tree).find((element) => element.props.testId === testId);
 }
 
+function mentionRows(tree: ReactElement): Element[] {
+    return elements(tree).filter(
+        (element) => element.props['data-test'] === 'mention-suggestion',
+    );
+}
+
+function searching(tree: ReactElement): boolean {
+    return elements(tree).some((element) =>
+        React.Children.toArray(element.props.children as ReactNode).includes(
+            'Searching…',
+        ),
+    );
+}
+
+const alice = { id: 'alice', username: 'alice', name: 'Alice', lane: 1 };
+
 beforeEach(() => {
     vi.clearAllMocks();
     state = [];
@@ -227,12 +243,36 @@ test('code at the start of the body inserts without padding', () => {
 });
 
 test('code does not insert when the block would exceed the character limit', () => {
-    const prefix = 'a'.repeat(4000 - '/code'.length);
+    const prefix = `${'a'.repeat(4000 - '/code'.length - 1)} `;
     value = prefix;
-    const tree = type(`${prefix}/code`);
-    press(tree, ' ');
+    const onKeyDown = vi.fn();
+    const tree = type(`${prefix}/code`, { onKeyDown });
+    const event = press(tree, ' ');
 
+    assert.equal(event.preventDefault.mock.calls.length, 0);
     assert.equal(onValueChange.mock.calls.length, 1);
+    assert.equal(onValueChange.mock.lastCall?.[0], `${prefix}/code`);
+    assert.equal(onKeyDown.mock.calls.length, 1);
+});
+
+test('enter runs the active command when the block fits', () => {
+    const tree = type('see /code');
+    const event = press(tree, 'Enter');
+
+    assert.equal(event.preventDefault.mock.calls.length, 1);
+    assert.equal(onValueChange.mock.lastCall?.[0], 'see \n```\n\n```');
+});
+
+test('enter at the character limit is left to the caller', () => {
+    const prefix = `${'a'.repeat(4000 - '/code'.length - 1)} `;
+    value = prefix;
+    const onKeyDown = vi.fn();
+    const tree = type(`${prefix}/code`, { onKeyDown });
+    const event = press(tree, 'Enter');
+
+    assert.equal(event.preventDefault.mock.calls.length, 0);
+    assert.equal(onValueChange.mock.calls.length, 1);
+    assert.equal(onKeyDown.mock.calls.length, 1);
 });
 
 test('the two menus do not open for each other', () => {
@@ -242,6 +282,48 @@ test('the two menus do not open for each other', () => {
 
     assert.ok(menu(mention, 'mention-suggestions'));
     assert.equal(row(mention, 'image'), undefined);
+});
+
+test('typing @ opens the mention menu in its searching state', () => {
+    const tree = type('@ali');
+
+    assert.ok(menu(tree, 'mention-suggestions'));
+    assert.equal(mentionRows(tree).length, 0);
+    assert.ok(searching(tree));
+});
+
+test('mention results for a stale query are not shown', () => {
+    state[5] = {
+        query: 'bob',
+        users: [{ id: 'bob', username: 'bob', name: 'Bob', lane: 2 }],
+    };
+    const tree = type('@ali');
+
+    assert.ok(menu(tree, 'mention-suggestions'));
+    assert.equal(mentionRows(tree).length, 0);
+    assert.ok(searching(tree));
+});
+
+test('selecting a mention inserts @username and closes the menu', () => {
+    state[5] = { query: 'ali', users: [alice] };
+    const tree = type('@ali');
+    const suggestion = mentionRows(tree)[0]!;
+
+    assert.equal(suggestion.props.id, 'menu-0-mention-alice');
+
+    (field(tree).props.ref as (element: unknown) => void)({
+        focus: vi.fn(),
+        setSelectionRange: vi.fn(),
+    });
+
+    (suggestion.props.onClick as () => void)();
+
+    assert.equal(onValueChange.mock.lastCall?.[0], '@alice ');
+
+    const closed = render();
+
+    assert.equal(mentionRows(closed).length, 0);
+    assert.equal(menu(closed, 'mention-suggestions'), undefined);
 });
 
 test('poll is absent in replies and when no poll callback is given', () => {

@@ -5,7 +5,8 @@ import type { CaretMenuPosition } from '@/lib/caret-position';
 
 /**
  * The shared keyboard rules of the caret menus: ↑↓ cycle, ↵ or Tab pick, Esc dismisses. Returns true when the
- * event was consumed and the textarea should leave it alone.
+ * event was consumed and the textarea should leave it alone. An optional canSelect gate can veto the pick for
+ * the active index, leaving that key to the textarea.
  */
 export function handleCaretMenuKeydown(
     event: KeyboardEvent<HTMLTextAreaElement>,
@@ -15,12 +16,14 @@ export function handleCaretMenuKeydown(
         setActiveIndex,
         onSelect,
         onClose,
+        canSelect,
     }: {
         count: number;
         activeIndex: number;
         setActiveIndex: (index: number) => void;
         onSelect: (index: number) => void;
         onClose: () => void;
+        canSelect?: (index: number) => boolean;
     },
 ): boolean {
     if (event.nativeEvent.isComposing) {
@@ -41,7 +44,8 @@ export function handleCaretMenuKeydown(
         (event.key === 'Enter' || event.key === 'Tab') &&
         !hasModifier &&
         !event.shiftKey &&
-        count > 0
+        count > 0 &&
+        (canSelect === undefined || canSelect(activeIndex))
     ) {
         event.preventDefault();
         onSelect(activeIndex);
