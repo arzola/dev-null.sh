@@ -22,8 +22,7 @@ export type TextareaLike = {
 };
 
 /**
- * The token ("@handle", "/command", or ":shortcode") being typed right before a collapsed caret, if any. The shortcode
- * is matched against the prose before the caret (the caller strips code spans), so emoji never trigger inside code.
+ * The token ("@handle", "/command", or ":shortcode") being typed right before a collapsed caret, if any.
  */
 export function caretToken(
     textarea: TextareaLike,

@@ -4,9 +4,7 @@ import { createPortal } from 'react-dom';
 import type { CaretMenuPosition } from '@/lib/caret-position';
 
 /**
- * The shared keyboard rules of the caret menus: ↑↓ cycle, ↵ or Tab pick, Esc dismisses. Returns true when the
- * event was consumed and the textarea should leave it alone. An optional canSelect gate can veto the pick for
- * the active index, leaving that key to the textarea.
+ * The shared keyboard rules of the caret menus: ↑↓ cycle, ↵ or Tab pick, Esc dismisses. Returns true when consumed.
  */
 export function handleCaretMenuKeydown(
     event: KeyboardEvent<HTMLTextAreaElement>,

@@ -135,7 +135,7 @@ export function matchCommand(query: string): SlashCommand | null {
 }
 
 /**
- * The body without the "/command" token, dropping one adjacent space so no stray gap is left behind.
+ * The body without the "/command" token, dropping one adjacent space.
  */
 export function consumeSlashToken(
     value: string,
@@ -157,8 +157,7 @@ export function consumeSlashToken(
 }
 
 /**
- * The body with the token replaced by a fenced code block, and the caret index inside it. The fence parser needs
- * the fences on their own lines, so line breaks are added around the block when the token sits mid-line.
+ * The body with a fenced code block where the token was, and the caret index inside it.
  */
 export function codeFenceInsertion(
     value: string,
