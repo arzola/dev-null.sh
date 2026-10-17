@@ -25,6 +25,7 @@ use App\Http\Controllers\CommitStarCountController;
 use App\Http\Controllers\ExportController;
 use App\Http\Controllers\FailedJobController;
 use App\Http\Controllers\FailedJobRetryController;
+use App\Http\Controllers\GiphyKeyController;
 use App\Http\Controllers\LogController;
 use App\Http\Controllers\MentionSuggestionController;
 use App\Http\Controllers\ModerationController;
@@ -254,6 +255,10 @@ Route::middleware('auth')->group(function (): void {
     Route::put('settings/lane', [UserLaneController::class, 'update'])->name('user-lane.update');
 
     Route::put('settings/pasteis-mode', [UserPasteisModeController::class, 'update'])->name('user-pasteis-mode.update');
+
+    // Giphy key...
+    Route::put('settings/giphy', [GiphyKeyController::class, 'update'])->name('giphy-key.update');
+    Route::delete('settings/giphy', [GiphyKeyController::class, 'destroy'])->name('giphy-key.destroy');
 
     // Appearance...
     Route::get('settings/appearance', fn () => Inertia::render('appearance/update'))->name('appearance.edit');
