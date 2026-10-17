@@ -398,6 +398,7 @@ it('never exports the giphy key', function (): void {
     $response = $this->actingAs($user)->get(route('export'));
 
     $response->assertOk();
+
     $data = json_decode($response->streamedContent(), true, flags: JSON_THROW_ON_ERROR);
 
     expect($data['profile'])->not->toHaveKey('giphy_key')

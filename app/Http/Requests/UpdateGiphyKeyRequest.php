@@ -18,7 +18,7 @@ final class UpdateGiphyKeyRequest extends FormRequest
         $key = $this->input('key');
 
         if (is_string($key)) {
-            $this->merge(['key' => trim($key)]);
+            $this->merge(['key' => mb_trim($key)]);
         }
     }
 
