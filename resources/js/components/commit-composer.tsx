@@ -282,13 +282,6 @@ function CommitComposerBody({
                                     errors.scheduled_at ? true : undefined
                                 }
                             />
-                            <input
-                                id="scheduled-at"
-                                type="datetime-local"
-                                hidden
-                                value={scheduledAt}
-                                onChange={handleScheduledAtChange}
-                            />
                             <p
                                 id={`${id}-schedule-help`}
                                 className="text-xs leading-relaxed text-muted-foreground"
@@ -409,23 +402,6 @@ function CommitComposerBody({
                             <Clock3 className="size-3.5" aria-hidden="true" />
                             Schedule
                         </Button>
-                        <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            hidden
-                            aria-controls="commit-schedule"
-                            disabled={
-                                processing ||
-                                (!isScheduling && stash.gif !== null)
-                            }
-                            title={
-                                !isScheduling && stash.gif !== null
-                                    ? "A commit with a GIF can't be scheduled yet"
-                                    : undefined
-                            }
-                            onClick={toggleScheduling}
-                        />
                         <BodyCounter
                             id={`${id}-count`}
                             body={body}

@@ -484,7 +484,7 @@ test('attaching images while a gif is stashed clears the gif and submits the ima
     draft.updateGif(gif);
     let view = render();
     const schedule = view.fields.find(
-        (element) => element.props['aria-controls'] === 'commit-schedule',
+        (element) => element.props['aria-controls'] === 'body-schedule',
     )!;
     assert.equal(schedule.props.disabled, true);
     assert.equal(
@@ -522,14 +522,14 @@ test('a gif stashed while scheduling blocks submit and never reaches the transfo
     let view = render();
     (
         view.fields.find(
-            (element) => element.props['aria-controls'] === 'commit-schedule',
+            (element) => element.props['aria-controls'] === 'body-schedule',
         )!.props.onClick as () => void
     )();
     view = render();
     const date = '2026-10-17T10:30';
     const setCustomValidity = vi.fn();
     (
-        view.fields.find((element) => element.props.id === 'scheduled-at')!
+        view.fields.find((element) => element.props.id === 'body-scheduled-at')!
             .props.onChange as (event: unknown) => void
     )({
         target: { value: date, setCustomValidity },
