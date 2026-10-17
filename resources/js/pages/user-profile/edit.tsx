@@ -1,4 +1,4 @@
-import { Form, Head, Link } from '@inertiajs/react';
+import { Form, Head, Link, router } from '@inertiajs/react';
 import { ArrowUpRight, Download, RefreshCw } from 'lucide-react';
 import ExportController from '@/actions/App/Http/Controllers/ExportController';
 import UserProfileController from '@/actions/App/Http/Controllers/UserProfileController';
@@ -9,6 +9,7 @@ import { GitHubProfile } from '@/components/github-profile';
 import Heading from '@/components/heading';
 import LanePicker from '@/components/lane-picker';
 import { PasteisModeSetting } from '@/components/pasteis-mode-setting';
+import TimezonePicker from '@/components/timezone-picker';
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
 import { useNow } from '@/hooks/use-now';
@@ -17,6 +18,7 @@ import AppLayout from '@/layouts/app-layout';
 import SettingsLayout from '@/layouts/settings/layout';
 import { formatFullDateTime } from '@/lib/utils';
 import { show } from '@/routes/user';
+import type { Lane } from '@/types';
 
 function formatSyncedAgo(date: string, now: Date): string {
     const seconds = Math.round(
@@ -48,7 +50,7 @@ export default function Edit({
     activityGraphUrl,
     profileUrl,
 }: {
-    preferredLane: number | null;
+    preferredLane: Lane | null;
     automaticLane: number;
     githubSyncedAt: string | null;
     giphyConnected: boolean;
@@ -84,6 +86,7 @@ export default function Edit({
                     <Form
                         {...UserProfileController.update.form()}
                         options={{ preserveScroll: true }}
+                        onSuccess={() => router.flushAll()}
                     >
                         {({ processing }) => (
                             <Button
@@ -127,6 +130,8 @@ export default function Edit({
                 preferredLane={preferredLane}
                 automaticLane={automaticLane}
             />
+
+            <TimezonePicker />
 
             <PasteisModeSetting />
 
