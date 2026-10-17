@@ -29,6 +29,8 @@ import {
 } from '@/components/composer-preview';
 import { CopyLinkButton } from '@/components/copy-link-button';
 import { EmojiSuggestionHint } from '@/components/emoji-suggestion';
+import { GiphyAttachmentPreview } from '@/components/giphy-attachment-preview';
+import { GiphyPickerButton } from '@/components/giphy-picker-button';
 import { RailDot } from '@/components/graph-rail';
 import InputError from '@/components/input-error';
 import { LinkCardPicker } from '@/components/link-card-picker';
@@ -51,6 +53,7 @@ import { signIn } from '@/lib/auth';
 import { maxBodyLength, minBodyLength } from '@/lib/commit';
 import { commitStateKey } from '@/lib/commit-state';
 import { completeEmoji, suggestEmoji } from '@/lib/emoji';
+import { giphyFormFields } from '@/lib/giphy';
 import { hasModKey } from '@/lib/keyboard';
 import {
     characterCount,
@@ -929,9 +932,11 @@ function ReplyComposer({
         body,
         images,
         descriptions,
+        gif,
         isRestored,
         updateBody,
         updateImages,
+        updateGif,
         drop,
     } = useStash(user.id, `reply-${parent.id}`);
     const attachments = useImageAttachments(images, descriptions, updateImages);
@@ -943,6 +948,13 @@ function ReplyComposer({
             images: File[];
             image_descriptions: string[];
             link_preview_url?: string;
+            giphy_id?: string;
+            giphy_url?: string;
+            giphy_page_url?: string;
+            giphy_title?: string;
+            giphy_username?: string;
+            giphy_width?: number;
+            giphy_height?: number;
         },
         CreatedReply
     >({
@@ -1008,8 +1020,9 @@ function ReplyComposer({
 
         request.setData(() => ({
             body,
-            images,
-            image_descriptions: descriptions,
+            images: gif === null ? images : [],
+            image_descriptions: gif === null ? descriptions : [],
+            ...(gif !== null ? giphyFormFields(gif) : {}),
             ...(linkCard.isChosen
                 ? { link_preview_url: linkCard.link ?? '' }
                 : {}),
@@ -1103,6 +1116,12 @@ function ReplyComposer({
                     onRemove={attachments.remove}
                 />
             )}
+            {!preview.isPreviewing && (
+                <GiphyAttachmentPreview
+                    gif={gif}
+                    onRemove={() => updateGif(null)}
+                />
+            )}
             <SecretWarning
                 body={body}
                 findings={secrets.findings}
@@ -1122,8 +1141,20 @@ function ReplyComposer({
                     <ImagePickerButton
                         count={images.length}
                         disabled={processing}
-                        onPick={attachments.attach}
+                        onPick={(files) => {
+                            updateGif(null);
+                            attachments.attach(files);
+                        }}
                         className="size-8"
+                    />
+                    <GiphyPickerButton
+                        disabled={processing}
+                        hasGif={gif !== null}
+                        onPick={(picked) => {
+                            attachments.clear();
+                            updateGif(picked);
+                        }}
+                        className="-ml-2 size-8"
                     />
                     <PreviewToggle preview={preview} className="-ml-2 size-8" />
                     <LinkCardPicker

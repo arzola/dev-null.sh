@@ -13,9 +13,11 @@ const draft = {
     body: 'A restored quote',
     images: [image],
     descriptions: ['A restored screenshot'],
+    gif: null,
     isRestored: true,
     updateBody: vi.fn(),
     updateImages,
+    updateGif: vi.fn(),
     drop,
 };
 

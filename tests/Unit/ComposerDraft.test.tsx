@@ -11,12 +11,14 @@ const draft = {
     body: 'A restored draft https://example.com',
     images: [] as File[],
     descriptions: [] as string[],
+    gif: null,
     isRestored: true,
     updateBody: vi.fn(),
     updateImages: vi.fn((images: File[], descriptions: string[]) => {
         draft.images = images;
         draft.descriptions = descriptions;
     }),
+    updateGif: vi.fn(),
     drop: vi.fn(),
 };
 const user = { id: 'viewer', username: 'viewer', lane: 1 };

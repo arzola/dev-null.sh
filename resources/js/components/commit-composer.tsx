@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from 'react';
 import CommitController from '@/actions/App/Http/Controllers/CommitController';
 import ScheduledCommitController from '@/actions/App/Http/Controllers/ScheduledCommitController';
 import { BodyCounter } from '@/components/body-counter';
+import { CommitGiphy } from '@/components/commit-giphy';
 import {
     ImagePickerButton,
     ImagePickerPreviews,
@@ -16,6 +17,8 @@ import {
     useComposerPreview,
 } from '@/components/composer-preview';
 import { EmojiSuggestionHint } from '@/components/emoji-suggestion';
+import { GiphyAttachmentPreview } from '@/components/giphy-attachment-preview';
+import { GiphyPickerButton } from '@/components/giphy-picker-button';
 import { GraphRail, RailAvatar } from '@/components/graph-rail';
 import InputError from '@/components/input-error';
 import { LinkCardPicker } from '@/components/link-card-picker';
@@ -39,6 +42,8 @@ import {
 import { useUser } from '@/hooks/use-user';
 import { maxBodyLength, minBodyLength } from '@/lib/commit';
 import { completeEmoji, suggestEmoji } from '@/lib/emoji';
+import { giphyFormFields } from '@/lib/giphy';
+import type { GiphyAttachment } from '@/lib/giphy';
 import { hasModKey, useKeyLabels } from '@/lib/keyboard';
 import { characterCount, cn, laneColor } from '@/lib/utils';
 import type { User } from '@/types';
@@ -109,6 +114,11 @@ function CommitComposerBody({
     const error = errors.body ?? errors.link_preview_url;
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const preview = useComposerPreview({ body, textareaRef, isSubmittable });
+    const pickGif = (gif: GiphyAttachment) => {
+        attachments.clear();
+        setPoll(null);
+        stash.updateGif(gif);
+    };
 
     return (
         <div className="flex">
@@ -175,6 +185,10 @@ function CommitComposerBody({
                         )}
                     </div>
 
+                    {preview.isPreviewing && stash.gif !== null && (
+                        <CommitGiphy gif={stash.gif} />
+                    )}
+
                     {!preview.isPreviewing && (
                         <EmojiSuggestionHint
                             suggestion={suggestion}
@@ -200,6 +214,12 @@ function CommitComposerBody({
                             descriptions={attachments.descriptions}
                             onDescribe={attachments.describe}
                             onRemove={attachments.remove}
+                        />
+                    )}
+                    {!preview.isPreviewing && (
+                        <GiphyAttachmentPreview
+                            gif={stash.gif}
+                            onRemove={() => stash.updateGif(null)}
                         />
                     )}
                     <InputError
@@ -291,8 +311,19 @@ function CommitComposerBody({
                                 <ImagePickerButton
                                     count={attachments.images.length}
                                     disabled={processing || poll !== null}
-                                    onPick={attachments.attach}
+                                    onPick={(files) => {
+                                        stash.updateGif(null);
+                                        attachments.attach(files);
+                                    }}
                                     className="-ml-2"
+                                />
+                            )}
+                            {!isScheduling && (
+                                <GiphyPickerButton
+                                    disabled={processing || poll !== null}
+                                    hasGif={stash.gif !== null}
+                                    onPick={pickGif}
+                                    className="-ml-3"
                                 />
                             )}
                             <Button
@@ -303,9 +334,11 @@ function CommitComposerBody({
                                     processing ||
                                     poll !== null ||
                                     hasImages ||
-                                    isScheduling
+                                    isScheduling ||
+                                    stash.gif !== null
                                 }
                                 onClick={() => {
+                                    stash.updateGif(null);
                                     setPoll(emptyPollDraft);
                                     requestAnimationFrame(() =>
                                         document
@@ -319,7 +352,9 @@ function CommitComposerBody({
                                         ? 'Polls cannot be scheduled yet'
                                         : hasImages
                                           ? 'A commit can have images or a poll, not both'
-                                          : 'Add poll'
+                                          : stash.gif !== null
+                                            ? 'A commit can have a GIF or a poll, not both'
+                                            : 'Add poll'
                                 }
                                 className="text-muted-foreground"
                                 data-test="add-poll-button"
@@ -473,13 +508,15 @@ export function CommitComposer() {
                               .toISOString()
                               .replace(/\.\d{3}Z$/, '+00:00'),
                       }
-                    : hasImages
-                      ? {
-                            ...data,
-                            images: attachments.images,
-                            image_descriptions: attachments.descriptions,
-                        }
-                      : data
+                    : stash.gif !== null
+                      ? { ...data, ...giphyFormFields(stash.gif) }
+                      : hasImages
+                        ? {
+                              ...data,
+                              images: attachments.images,
+                              image_descriptions: attachments.descriptions,
+                          }
+                        : data
             }
             options={{ preserveScroll: true }}
             onSuccess={(page) => {
