@@ -13,7 +13,7 @@ final class UpdateGiphyKeyRequest extends FormRequest
         return true;
     }
 
-    protected function prepareForValidation(): void
+    public function prepareForValidation(): void
     {
         $key = $this->input('key');
 
