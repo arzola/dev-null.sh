@@ -118,6 +118,7 @@ export function MentionTextarea({
     onImage,
     onPoll,
     commandContext,
+    suggestsMentions = true,
     maxLength,
     ...props
 }: Omit<ComponentProps<'textarea'>, 'value' | 'onChange'> & {
@@ -127,6 +128,7 @@ export function MentionTextarea({
     onImage?: () => void;
     onPoll?: () => void;
     commandContext?: ComposerSurface;
+    suggestsMentions?: boolean;
 }) {
     const id = useId();
     const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -169,6 +171,7 @@ export function MentionTextarea({
         const next = caretToken(
             textarea,
             typedProse(textarea.value.slice(0, caret)).at(-1) ?? '',
+            suggestsMentions,
         );
 
         if (next === null) {

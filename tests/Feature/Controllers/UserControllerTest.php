@@ -2,12 +2,14 @@
 
 declare(strict_types=1);
 
+use App\Enums\Log;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Models\Commit;
 use App\Models\LinkPreview;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Inertia\Testing\AssertableInertia;
 
 it('renders a user profile', function (): void {
     $user = User::factory()->create(['username' => 'octocat', 'preferred_lane' => 4]);
@@ -386,6 +388,23 @@ it('changes the link preview image version only when public profile data changes
     expect($version())->not->toBe($initial);
 });
 
+it('changes the link preview image version only when something drawn on it changes', function (): void {
+    $user = User::factory()->create(['username' => 'octocat', 'log' => Log::Following]);
+
+    $version = fn (): string => Str::betweenFirst($this->get('/@octocat')->getContent(), 'og.png?v=', '"');
+
+    $initial = $version();
+
+    $this->travel(1)->minute();
+    $user->update(['log' => Log::Trending]);
+
+    expect($version())->toBe($initial);
+
+    $user->update(['name' => 'The Octocat']);
+
+    expect($version())->not->toBe($initial);
+});
+
 it('returns guests to the profile after signing in', function (): void {
     $user = User::factory()->create(['username' => 'octocat']);
 
@@ -621,4 +640,34 @@ it('preloads only replies visible to the profile visitor', function (): void {
         ->where('commits.data.0.reply_preview.data.0.id', $ownPending->id)
         ->where('commits.data.0.reply_preview.next_cursor', fn (string $cursor): bool => $cursor !== '')
         ->missing('commits.data.0.reply_preview.data.0.user.email'));
+});
+
+it('offers a remote only when the viewer could push to the profile', function (string $case, bool $canPush): void {
+    $viewer = User::factory()->create();
+    $profile = User::factory()->create();
+
+    if ($case !== 'they do not follow you') {
+        $profile->following()->attach($viewer);
+    }
+
+    match ($case) {
+        'you have remotes off' => $viewer->update(['remotes_enabled' => false]),
+        'they have remotes off' => $profile->update(['remotes_enabled' => false]),
+        default => null,
+    };
+
+    $this->actingAs($viewer)->get(route('user.show', $profile))
+        ->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page->where('canPush', $canPush));
+})->with([
+    ['they follow you', true],
+    ['they do not follow you', false],
+    ['you have remotes off', false],
+    ['they have remotes off', false],
+]);
+
+it('offers guests and the profile owner no remote', function (): void {
+    $user = User::factory()->create();
+
+    $this->actingAs($user)->get(route('user.show', $user))
+        ->assertInertia(fn (AssertableInertia $page): AssertableInertia => $page->where('canPush', false));
 });

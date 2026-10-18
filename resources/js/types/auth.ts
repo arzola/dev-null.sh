@@ -1,3 +1,4 @@
+import type { RemotesFrom } from '@/types/conversation';
 import type { Log } from '@/types/log';
 
 /**
@@ -17,6 +18,7 @@ export type User = {
     has_sponsors_listing: boolean;
     has_github_account: boolean;
     lane: Lane;
+    timezone: string | null;
     created_at: string;
     updated_at: string;
 };
@@ -35,6 +37,13 @@ export type Auth = {
     isAdmin: boolean;
     log: Log | null;
     unreadNotificationsCount: number;
+    unreadMessagesCount: number;
+    remotes: {
+        from: RemotesFrom;
+        pull_receipts: boolean;
+        requests: boolean;
+        everyone: boolean;
+    } | null;
     pasteis: { remaining: number; day: string } | null;
 };
 

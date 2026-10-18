@@ -1,7 +1,10 @@
 import { Link, usePage } from '@inertiajs/react';
 import { Search } from 'lucide-react';
+import PrivacyController from '@/actions/App/Http/Controllers/PrivacyController';
+import TermsController from '@/actions/App/Http/Controllers/TermsController';
 import UserFollowersController from '@/actions/App/Http/Controllers/UserFollowersController';
 import UserFollowingController from '@/actions/App/Http/Controllers/UserFollowingController';
+import { ChangelogPopover } from '@/components/changelog-popover';
 import { GitHubIcon } from '@/components/github-icon';
 import { Button } from '@/components/ui/button';
 import { UserAvatar } from '@/components/user-avatar';
@@ -12,13 +15,6 @@ import { useKeyLabels } from '@/lib/keyboard';
 import { laneColor } from '@/lib/utils';
 import { login } from '@/routes';
 import { show } from '@/routes/user';
-
-const rules = [
-    'Everyone here signed in with GitHub.',
-    'Commits are plain text, up to 4,000 characters.',
-    'No algorithm. Newest first.',
-    'Profiles mirror GitHub. Edit yours there.',
-];
 
 export function AppAside({
     onShowShortcuts,
@@ -39,7 +35,7 @@ export function AppAside({
             <button
                 type="button"
                 onClick={onSearch}
-                className="-mb-2 flex h-11 items-center gap-2.5 rounded-full border bg-card px-4 py-2.5 text-[15px] text-muted-foreground transition-colors hover:border-input hover:text-foreground"
+                className="-mb-2 flex h-11 items-center gap-2.5 rounded-lg border bg-card px-4 py-2.5 text-[15px] text-muted-foreground transition-colors hover:border-input hover:text-foreground"
                 data-test="search-button"
             >
                 <Search className="size-4" />
@@ -67,6 +63,24 @@ export function AppAside({
                             Sign in with GitHub
                         </a>
                     </Button>
+                    <p className="mt-3 text-xs text-pretty text-muted-foreground">
+                        By signing in, you confirm you're at least 16 and agree
+                        to the{' '}
+                        <Link
+                            href={TermsController.show()}
+                            className="underline underline-offset-4 hover:text-foreground"
+                        >
+                            terms
+                        </Link>{' '}
+                        and the{' '}
+                        <Link
+                            href={PrivacyController.show()}
+                            className="underline underline-offset-4 hover:text-foreground"
+                        >
+                            privacy policy
+                        </Link>
+                        .
+                    </p>
                 </section>
             ) : (
                 <section aria-labelledby="aside-you">
@@ -149,23 +163,6 @@ export function AppAside({
 
             <WhoToFollow />
 
-            <section aria-labelledby="aside-rules" className="border-t pt-6">
-                <h2 id="aside-rules" className="mb-3 text-sm font-semibold">
-                    How /dev/null works
-                </h2>
-                <ul className="space-y-2.5 text-sm">
-                    {rules.map((rule) => (
-                        <li key={rule} className="flex gap-2.5">
-                            <span
-                                aria-hidden
-                                className="mt-[0.45em] size-1.5 shrink-0 rounded-full bg-rail"
-                            />
-                            {rule}
-                        </li>
-                    ))}
-                </ul>
-            </section>
-
             <div className="mt-auto space-y-2 text-sm text-muted-foreground">
                 <button
                     type="button"
@@ -177,7 +174,23 @@ export function AppAside({
                         ?
                     </kbd>
                 </button>
-                <p>Everything else goes to /dev/null.</p>
+                <div className="flex gap-4">
+                    <nav aria-label="Legal" className="flex gap-4">
+                        <Link
+                            href={TermsController.show()}
+                            className="transition-colors hover:text-foreground"
+                        >
+                            Terms
+                        </Link>
+                        <Link
+                            href={PrivacyController.show()}
+                            className="transition-colors hover:text-foreground"
+                        >
+                            Privacy
+                        </Link>
+                    </nav>
+                    <ChangelogPopover />
+                </div>
             </div>
         </aside>
     );

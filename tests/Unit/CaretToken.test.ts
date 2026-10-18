@@ -92,3 +92,17 @@ void test('emoji stay quiet on times, one-letter shortcodes, and outside prose',
     assert.equal(caretToken(at('`x :sm`'), ''), null);
     assert.equal(caretToken(at('hi :sm')), null);
 });
+
+void test('mentions can be turned off without silencing the other tokens', () => {
+    assert.equal(caretToken(at('@ali'), '', false), null);
+    assert.deepEqual(caretToken(at('hi :sm'), 'hi :sm', false), {
+        kind: 'emoji',
+        start: 3,
+        query: 'sm',
+    });
+    assert.deepEqual(caretToken(at('/im'), '', false), {
+        kind: 'slash',
+        start: 0,
+        query: 'im',
+    });
+});

@@ -27,13 +27,16 @@ export type TextareaLike = {
 export function caretToken(
     textarea: TextareaLike,
     prose = '',
+    suggestsMentions = true,
 ): CaretToken | null {
     if (textarea.selectionStart !== textarea.selectionEnd) {
         return null;
     }
 
     const before = textarea.value.slice(0, textarea.selectionStart);
-    const mention = before.match(mentionBeforeCaretPattern);
+    const mention = suggestsMentions
+        ? before.match(mentionBeforeCaretPattern)
+        : null;
 
     if (mention) {
         return {

@@ -25,7 +25,7 @@ final class CommitBuilder extends Builder
      */
     private const array COLUMNS_BUT_EMBEDDING = [
         'id', 'user_id', 'body', 'created_at', 'updated_at', 'status', 'parent_id', 'deleted_at', 'link_preview_id',
-        'quoted_commit_id', 'ai_decision', 'ai_categories', 'root_id', 'hot_score', 'pasteis_count',
+        'quoted_commit_id', 'mentions', 'ai_decision', 'ai_categories', 'root_id', 'hot_score', 'pasteis_count',
     ];
 
     /**
@@ -165,7 +165,7 @@ final class CommitBuilder extends Builder
             'quotedCommit' => fn (BelongsTo $query): BelongsTo => $query
                 ->withTrashed()
                 ->where(fn (self $query): self => $query->visibleTo($viewer))
-                ->with('user')
+                ->with(['user', 'linkPreview', 'images'])
                 ->withPollFor($viewer),
         ]);
     }

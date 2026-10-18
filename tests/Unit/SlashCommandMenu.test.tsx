@@ -380,6 +380,19 @@ test('the emoji menu stays quiet inside code spans', () => {
     assert.equal(menu(tree, 'emoji-suggestions'), undefined);
 });
 
+test('disabling mention suggestions keeps emoji and slash commands working', () => {
+    assert.equal(
+        menu(type('@ali', { suggestsMentions: false }), 'mention-suggestions'),
+        undefined,
+    );
+    assert.ok(
+        menu(type(':sm', { suggestsMentions: false }), 'emoji-suggestions'),
+    );
+    assert.ok(
+        menu(type('/', { suggestsMentions: false }), 'slash-suggestions'),
+    );
+});
+
 test('submitting disables every command', () => {
     const tree = type('/', {
         commandContext: surface({ processing: true }),
