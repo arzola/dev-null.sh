@@ -42,7 +42,8 @@ final readonly class OperationsController
                 'githubRateLimit' => Inertia::defer($githubRateLimit->get(...)),
             ] : [],
             ...$traffic->isConfigured() ? [
-                'traffic' => Inertia::defer($traffic->get(...)),
+                'trafficRange' => ['from' => $request->trafficFrom()->toDateString(), 'to' => $request->trafficTo()->toDateString()],
+                'traffic' => Inertia::defer(fn (): ?array => $traffic->get($request->trafficFrom(), $request->trafficTo())),
             ] : [],
         ]);
     }

@@ -349,7 +349,7 @@ Sources: [moderation access](app/Http/Requests/ShowModerationRequest.php), [mode
 
 ### Operations dashboard
 
-Administrators can open `/operations` to inspect database and cache connectivity, queue backlogs, recent failed jobs, pending moderation, link-preview health, and recent signup/commit/reply volume. The GitHub API rate limit is shown when credentials are configured, and Fathom site traffic (visitors on the site now, and visitors and pageviews over 24 hours and 7 days) when a Fathom API token is configured. The dashboard refreshes periodically and offers retry or forget controls for failed jobs. Non-admin users cannot access it.
+Administrators can open `/operations` to inspect database and cache connectivity, queue backlogs, recent failed jobs, pending moderation, link-preview health, and recent signup/commit/reply volume. The GitHub API rate limit is shown when credentials are configured, and Fathom site traffic when a Fathom API token is configured: visitors on the site now, plus visitors, pageviews, average time on site, bounce rate, and the top pages, referrers, countries, devices, and browsers for a chosen date range (the last 7 days by default). The dashboard refreshes periodically and offers retry or forget controls for failed jobs. Non-admin users cannot access it.
 
 Sources: [operations controller](app/Http/Controllers/OperationsController.php), [access check](app/Http/Requests/ShowOperationsRequest.php), [operations page](resources/js/pages/operations/show.tsx).
 

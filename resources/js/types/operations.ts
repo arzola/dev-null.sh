@@ -38,8 +38,27 @@ export type GitHubRateLimit = {
     resets_at: string;
 };
 
+export type TrafficRow = {
+    name: string;
+    visitors: number;
+    pageviews: number;
+};
+
 export type Traffic = {
     current: number;
-    day: { visitors: number; pageviews: number };
-    week: { visitors: number; pageviews: number };
+    totals: {
+        visitors: number;
+        pageviews: number;
+        avg_duration: number;
+        bounce_rate: number;
+    };
+    breakdowns: Record<
+        'pages' | 'referrers' | 'countries' | 'devices' | 'browsers',
+        TrafficRow[]
+    >;
+};
+
+export type TrafficRange = {
+    from: string;
+    to: string;
 };

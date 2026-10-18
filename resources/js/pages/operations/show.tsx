@@ -33,6 +33,8 @@ import type {
     LinkPreviewHealth,
     QueueBacklog,
     Traffic,
+    TrafficRange,
+    TrafficRow,
     Volume,
 } from '@/types';
 
@@ -49,6 +51,7 @@ const PAGE_PROPS = [
     'volume',
     'githubRateLimit',
     'traffic',
+    'trafficRange',
 ];
 
 const LEAVE_DELAY_MS = 700;
@@ -223,6 +226,178 @@ function GitHubRateLimitSkeleton() {
     );
 }
 
+const TRAFFIC_PRESETS = [
+    { label: 'today', days: 1 },
+    { label: '7d', days: 7 },
+    { label: '30d', days: 30 },
+    { label: '90d', days: 90 },
+];
+
+const BREAKDOWNS = [
+    { key: 'pages', title: 'pages', empty: '(none)' },
+    { key: 'referrers', title: 'referrers', empty: 'direct' },
+    { key: 'countries', title: 'countries', empty: 'unknown' },
+    { key: 'devices', title: 'devices', empty: 'unknown' },
+    { key: 'browsers', title: 'browsers', empty: 'unknown' },
+] as const;
+
+const regions = new Intl.DisplayNames(['en'], { type: 'region' });
+
+function utcDate(daysAgo = 0): string {
+    return new Date(Date.now() - daysAgo * 86_400_000)
+        .toISOString()
+        .slice(0, 10);
+}
+
+function countryName(code: string): string {
+    try {
+        return regions.of(code) ?? code;
+    } catch {
+        return code;
+    }
+}
+
+function TrafficRangePicker({ range }: { range: TrafficRange }) {
+    const today = utcDate();
+
+    const select = (next: TrafficRange) =>
+        router.reload({
+            data: next,
+            only: ['traffic', 'trafficRange'],
+        });
+
+    return (
+        <div className="mb-3 flex flex-wrap items-center gap-2 font-mono text-[13px]">
+            {TRAFFIC_PRESETS.map((preset) => {
+                const from = utcDate(preset.days - 1);
+                const isActive = range.from === from && range.to === today;
+
+                return (
+                    <Button
+                        key={preset.label}
+                        variant={isActive ? 'secondary' : 'ghost'}
+                        size="sm"
+                        className="h-7 px-2 font-mono text-[13px]"
+                        aria-pressed={isActive}
+                        onClick={() => select({ from, to: today })}
+                    >
+                        {preset.label}
+                    </Button>
+                );
+            })}
+            <span className="flex items-center gap-1.5 sm:ml-auto">
+                <input
+                    type="date"
+                    aria-label="From"
+                    value={range.from}
+                    max={range.to}
+                    onChange={(event) =>
+                        event.target.value &&
+                        select({ ...range, from: event.target.value })
+                    }
+                    className="h-7 rounded-md border bg-transparent px-2 text-[13px]"
+                />
+                <span className="text-muted-foreground">→</span>
+                <input
+                    type="date"
+                    aria-label="To"
+                    value={range.to}
+                    min={range.from}
+                    max={today}
+                    onChange={(event) =>
+                        event.target.value &&
+                        select({ ...range, to: event.target.value })
+                    }
+                    className="h-7 rounded-md border bg-transparent px-2 text-[13px]"
+                />
+            </span>
+        </div>
+    );
+}
+
+function Breakdown({
+    title,
+    empty,
+    rows,
+    formatName = (name) => name,
+}: {
+    title: string;
+    empty: string;
+    rows: TrafficRow[];
+    formatName?: (name: string) => string;
+}) {
+    const top = rows[0]?.visitors ?? 0;
+
+    return (
+        <div className="rounded-lg border px-4">
+            <table className="w-full table-fixed text-sm">
+                <thead>
+                    <tr className="font-mono text-[13px] text-muted-foreground">
+                        <th
+                            scope="col"
+                            className="py-2.5 text-left font-normal"
+                        >
+                            {title}
+                        </th>
+                        <th
+                            scope="col"
+                            className="w-20 py-2.5 text-right font-normal"
+                        >
+                            visitors
+                        </th>
+                    </tr>
+                </thead>
+                <tbody className="divide-y border-t">
+                    {rows.length === 0 && (
+                        <tr>
+                            <td
+                                colSpan={2}
+                                className="py-2.5 font-mono text-[13px] text-muted-foreground"
+                            >
+                                nothing yet
+                            </td>
+                        </tr>
+                    )}
+                    {rows.map((row) => {
+                        const name =
+                            row.name === '' ? empty : formatName(row.name);
+
+                        return (
+                            <tr key={row.name}>
+                                <th
+                                    scope="row"
+                                    className="relative py-2.5 pr-3 text-left font-mono text-[13px] font-normal"
+                                >
+                                    <span
+                                        aria-hidden
+                                        className="absolute inset-y-1.5 left-0 -ml-2 rounded bg-muted"
+                                        style={{
+                                            width: `calc(${top > 0 ? (row.visitors / top) * 100 : 0}% + 0.5rem)`,
+                                        }}
+                                    />
+                                    <span
+                                        className={cn(
+                                            'relative block truncate',
+                                            row.name === '' &&
+                                                'text-muted-foreground',
+                                        )}
+                                        title={name}
+                                    >
+                                        {name}
+                                    </span>
+                                </th>
+                                <td className="py-2.5 text-right font-mono text-[13px] font-medium tabular-nums">
+                                    {formatCount(row.visitors)}
+                                </td>
+                            </tr>
+                        );
+                    })}
+                </tbody>
+            </table>
+        </div>
+    );
+}
+
 function TrafficValue({ traffic }: { traffic: Traffic | null | undefined }) {
     if (!traffic) {
         return (
@@ -237,63 +412,43 @@ function TrafficValue({ traffic }: { traffic: Traffic | null | undefined }) {
         );
     }
 
-    const rows = [
-        {
-            label: 'visitors',
-            day: traffic.day.visitors,
-            week: traffic.week.visitors,
-        },
-        {
-            label: 'pageviews',
-            day: traffic.day.pageviews,
-            week: traffic.week.pageviews,
-        },
-    ];
-
     return (
-        <div className="rounded-lg border px-4">
-            <table className="w-full table-fixed text-sm">
-                <thead>
-                    <tr className="font-mono text-[13px] text-muted-foreground">
-                        <th
-                            scope="col"
-                            className="py-2.5 text-left font-normal"
-                        >
-                            <span className="sr-only">What</span>
-                        </th>
-                        <th
-                            scope="col"
-                            className="w-20 py-2.5 text-right font-normal sm:w-24"
-                        >
-                            24h
-                        </th>
-                        <th
-                            scope="col"
-                            className="w-20 py-2.5 text-right font-normal sm:w-24"
-                        >
-                            7d
-                        </th>
-                    </tr>
-                </thead>
-                <tbody className="divide-y border-t">
-                    {rows.map((row) => (
-                        <tr key={row.label}>
-                            <th
-                                scope="row"
-                                className="py-2.5 text-left font-mono text-[13px] font-normal text-muted-foreground"
-                            >
-                                {row.label}
-                            </th>
-                            <td className="py-2.5 text-right font-mono text-[13px] font-medium tabular-nums">
-                                {formatCount(row.day)}
-                            </td>
-                            <td className="py-2.5 text-right font-mono text-[13px] tabular-nums">
-                                {formatCount(row.week)}
-                            </td>
-                        </tr>
-                    ))}
-                </tbody>
-            </table>
+        <div className="space-y-3">
+            <dl className="grid grid-cols-2 divide-x divide-y rounded-lg border text-sm sm:grid-cols-4 sm:divide-y-0">
+                {[
+                    ['visitors', formatCount(traffic.totals.visitors)],
+                    ['pageviews', formatCount(traffic.totals.pageviews)],
+                    ['avg time', formatAge(traffic.totals.avg_duration)],
+                    [
+                        'bounce rate',
+                        `${Math.round(traffic.totals.bounce_rate * 100)}%`,
+                    ],
+                ].map(([label, value]) => (
+                    <div key={label} className="px-4 py-2.5">
+                        <dt className="font-mono text-[13px] text-muted-foreground">
+                            {label}
+                        </dt>
+                        <dd className="font-mono text-base font-medium tabular-nums">
+                            {value}
+                        </dd>
+                    </div>
+                ))}
+            </dl>
+            <div className="grid gap-3 sm:grid-cols-2">
+                {BREAKDOWNS.map((breakdown) => (
+                    <Breakdown
+                        key={breakdown.key}
+                        title={breakdown.title}
+                        empty={breakdown.empty}
+                        rows={traffic.breakdowns[breakdown.key]}
+                        formatName={
+                            breakdown.key === 'countries'
+                                ? countryName
+                                : undefined
+                        }
+                    />
+                ))}
+            </div>
         </div>
     );
 }
@@ -302,11 +457,17 @@ function TrafficSkeleton() {
     return (
         <div
             aria-hidden
-            className="animate-in space-y-3 rounded-lg border px-4 py-3 delay-300 duration-300 fill-mode-both fade-in"
+            className="animate-in space-y-3 delay-300 duration-300 fill-mode-both fade-in"
         >
-            <Skeleton className="h-3 w-full" />
-            <Skeleton className="h-3 w-full" />
-            <Skeleton className="h-3 w-full" />
+            <Skeleton className="h-16 w-full rounded-lg" />
+            <div className="grid gap-3 sm:grid-cols-2">
+                {BREAKDOWNS.map((breakdown) => (
+                    <Skeleton
+                        key={breakdown.key}
+                        className="h-48 w-full rounded-lg"
+                    />
+                ))}
+            </div>
         </div>
     );
 }
@@ -495,6 +656,7 @@ export default function Show({
     volume,
     githubRateLimit,
     traffic,
+    trafficRange,
 }: {
     queues: QueueBacklog[];
     failedJobs: FailedJobs;
@@ -504,6 +666,7 @@ export default function Show({
     volume: Volume;
     githubRateLimit?: GitHubRateLimit | null;
     traffic?: Traffic | null;
+    trafficRange?: TrafficRange;
 }) {
     const { deferredProps } = usePage();
     const [isRefreshing, setIsRefreshing] = useState(false);
@@ -796,6 +959,9 @@ export default function Show({
                             : 'fathom'
                     }
                 >
+                    {trafficRange && (
+                        <TrafficRangePicker range={trafficRange} />
+                    )}
                     <Deferred data="traffic" fallback={<TrafficSkeleton />}>
                         <TrafficValue traffic={traffic} />
                     </Deferred>

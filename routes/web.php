@@ -9,6 +9,7 @@ use App\Http\Controllers\BrandController;
 use App\Http\Controllers\ChangelogController;
 use App\Http\Controllers\Cli\ScriptController;
 use App\Http\Controllers\CommitApprovalController;
+use App\Http\Controllers\CommitContinuationController;
 use App\Http\Controllers\CommitController;
 use App\Http\Controllers\CommitImageController;
 use App\Http\Controllers\CommitLinkPreviewController;
@@ -45,6 +46,7 @@ use App\Http\Controllers\MentionController;
 use App\Http\Controllers\MentionSuggestionController;
 use App\Http\Controllers\MessageImageController;
 use App\Http\Controllers\MessageLinkPreviewController;
+use App\Http\Controllers\MessageReactionController;
 use App\Http\Controllers\ModerationController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\NotificationGroupController;
@@ -191,6 +193,8 @@ Route::get('commits/{commit}/status', [CommitStatusController::class, 'show'])
 Route::get('commits/{commit}/replies', [CommitReplyController::class, 'index'])
     ->withTrashed()
     ->name('commit-reply.index');
+Route::get('commits/{commit}/continuation', [CommitContinuationController::class, 'index'])
+    ->name('commit-continuation.index');
 
 // Search...
 Route::get('search', [SearchController::class, 'index'])
@@ -314,6 +318,13 @@ Route::middleware('auth')->group(function (): void {
         Route::get('remotes/messages/{message}/link-preview', [MessageLinkPreviewController::class, 'show'])
             ->whereNumber('message')
             ->name('message-link-preview.show');
+        Route::get('remotes/reactions', [MessageReactionController::class, 'index'])->name('message-reaction.index');
+        Route::post('remotes/messages/{message}/reactions', [MessageReactionController::class, 'store'])
+            ->whereNumber('message')
+            ->name('message-reaction.store');
+        Route::delete('remotes/messages/{message}/reactions', [MessageReactionController::class, 'destroy'])
+            ->whereNumber('message')
+            ->name('message-reaction.destroy');
     });
 
     Route::post('remotes/@{partner:username}/messages', [ConversationMessageController::class, 'store'])
