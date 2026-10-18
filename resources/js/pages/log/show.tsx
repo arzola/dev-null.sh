@@ -22,14 +22,12 @@ export default function Show({
     log,
     commits,
     isRanked,
-    latestCommits,
     newCommitsCount = 0,
     suggestions,
 }: {
     log: Log;
     commits: CursorPaginated<Commit>;
     isRanked: boolean;
-    latestCommits: Commit[];
     newCommitsCount?: number;
     suggestions: Commit[];
 }) {
@@ -134,13 +132,13 @@ export default function Show({
 
             {newCommitsCount > 0 && (
                 <div
-                    className="sticky z-10 flex justify-center border-b bg-card py-3"
+                    className="pointer-events-none sticky z-10 flex h-0 items-start justify-center"
                     style={{ top: tabsHeight }}
                 >
                     <button
                         type="button"
                         onClick={reloadNewestFirst}
-                        className="flex items-center gap-1.5 rounded-full bg-primary px-4 py-1.5 text-sm font-medium text-primary-foreground shadow-[0_4px_14px_-4px_rgb(0_0_0/0.35)] transition-colors hover:bg-primary-hover motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-top-2"
+                        className="pointer-events-auto mt-3 flex items-center gap-1.5 rounded-full bg-primary px-4 py-1.5 text-sm font-medium text-primary-foreground shadow-[0_4px_14px_-4px_rgb(0_0_0/0.35)] transition-colors hover:bg-primary-hover motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-top-2"
                     >
                         <ArrowUp className="size-4" />
                         {newCommitsCount}{' '}
@@ -156,7 +154,6 @@ export default function Show({
                 <CommitFeed
                     commits={commits}
                     firstSeenId={firstSeenId}
-                    latestCommits={latestCommits}
                     isRanked={isRanked}
                     end="That's the root commit. There's nothing before it."
                     interlude={(lane, isDimmed) => (

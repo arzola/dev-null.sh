@@ -9,6 +9,8 @@
         "Unit/DraftStash.test.tsx",
         "Unit/CommitGiphy.test.tsx",
         "Unit/GiphyKeySetting.test.tsx",
+        "Unit/ComposerDraft.test.tsx",
+        "../resources/js/types/*.d.ts",
         "draft-images.config.ts",
         "commit-giphy.config.ts",
         "giphy-key.config.ts"

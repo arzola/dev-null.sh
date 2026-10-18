@@ -7,6 +7,7 @@ import {
     Star,
     User,
 } from 'lucide-react';
+import type { ReactNode } from 'react';
 import {
     DocumentList,
     DocumentPage,
@@ -42,6 +43,20 @@ const kindLabels: Record<StoryEventKind, string> = {
     milestone: 'milestone',
     press: 'press',
 };
+
+function ExternalLink({
+    href,
+    children,
+}: {
+    href: string;
+    children: ReactNode;
+}) {
+    return (
+        <a href={href} target="_blank" rel="noopener noreferrer">
+            {children}
+        </a>
+    );
+}
 
 function EventTitle({ event }: { event: StoryEvent }) {
     const face = event.commit?.author ?? event.person;
@@ -303,9 +318,35 @@ export default function Show() {
                         way in, posts are commits, and the timeline is a log.
                     </p>
                     <p>
-                        Everything was written from scratch with PHP, Laravel,
-                        Inertia, React, and Laravel Cloud, in JetBrains PhpStorm
-                        and JetBrains Air.
+                        Everything was written from scratch with{' '}
+                        <ExternalLink href="https://www.php.net">
+                            PHP
+                        </ExternalLink>
+                        ,{' '}
+                        <ExternalLink href="https://laravel.com">
+                            Laravel
+                        </ExternalLink>
+                        ,{' '}
+                        <ExternalLink href="https://inertiajs.com">
+                            Inertia
+                        </ExternalLink>
+                        ,{' '}
+                        <ExternalLink href="https://react.dev">
+                            React
+                        </ExternalLink>
+                        , and{' '}
+                        <ExternalLink href="https://cloud.laravel.com">
+                            Laravel Cloud
+                        </ExternalLink>
+                        , in{' '}
+                        <ExternalLink href="https://www.jetbrains.com/phpstorm">
+                            JetBrains PhpStorm
+                        </ExternalLink>{' '}
+                        and{' '}
+                        <ExternalLink href="https://jb.gg/nuno">
+                            JetBrains Air
+                        </ExternalLink>
+                        .
                     </p>
                     <p>
                         Anyone could open a pull request, and hundreds did. This

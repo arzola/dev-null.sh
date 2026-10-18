@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Enums\Log;
 use App\Http\Controllers\AboutController;
 use App\Http\Controllers\BookmarkController;
+use App\Http\Controllers\BrandController;
 use App\Http\Controllers\ChangelogController;
 use App\Http\Controllers\Cli\ScriptController;
 use App\Http\Controllers\CommitApprovalController;
@@ -38,6 +39,7 @@ use App\Http\Controllers\FailedJobController;
 use App\Http\Controllers\FailedJobRetryController;
 use App\Http\Controllers\GiphyKeyController;
 use App\Http\Controllers\InboxController;
+use App\Http\Controllers\IssueController;
 use App\Http\Controllers\LocalSessionController;
 use App\Http\Controllers\LogController;
 use App\Http\Controllers\MentionController;
@@ -121,6 +123,9 @@ Route::get('privacy', [PrivacyController::class, 'show'])->name('privacy.show');
 // How /dev/null was built, readable by everyone...
 Route::get('about', [AboutController::class, 'show'])->name('about.show');
 
+// Logos, colors, and backgrounds, downloadable by everyone...
+Route::get('brand', [BrandController::class, 'show'])->name('brand.show');
+
 // What was merged into production, readable by everyone...
 Route::get('changelog', [ChangelogController::class, 'index'])->name('changelog.index');
 
@@ -203,6 +208,10 @@ Route::get('search/commits', [CommitSearchController::class, 'index'])
     ->name('commit-search.index');
 
 Route::middleware('auth')->group(function (): void {
+    Route::post('issues', [IssueController::class, 'store'])
+        ->middleware('throttle:10,1')
+        ->name('issue.store');
+
     // Session...
     Route::post('logout', [SessionController::class, 'destroy'])
         ->name('logout');
