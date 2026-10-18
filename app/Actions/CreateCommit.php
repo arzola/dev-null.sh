@@ -13,6 +13,7 @@ use App\Jobs\UnfurlLink;
 use App\Models\Commit;
 use App\Models\LinkPreview;
 use App\Models\User;
+use App\Queries\MentionedUsersQuery;
 use App\Services\EmojiShortcodes;
 use App\Services\TheAlgorithm;
 use App\Services\Urls;
@@ -31,6 +32,7 @@ final readonly class CreateCommit
         private TheAlgorithm $theAlgorithm,
         private EmojiShortcodes $emojiShortcodes,
         private Urls $urls,
+        private MentionedUsersQuery $mentionedUsers,
     ) {
         //
     }
@@ -55,6 +57,7 @@ final readonly class CreateCommit
 
             $commit = $user->commits()->create([
                 'body' => $this->emojiShortcodes->replace($body),
+                'mentions' => $this->mentionedUsers->get($body),
                 'parent_id' => $parent?->id,
                 'root_id' => $parent?->threadRootId(),
                 'status' => $user->isAdmin() ? CommitStatus::Approved : CommitStatus::Pending,

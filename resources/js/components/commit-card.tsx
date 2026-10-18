@@ -49,6 +49,7 @@ export function CommitCard({
     isHighlighted = false,
     isGroupedWithPrevious = false,
     onAuthorHover,
+    onHover,
     actions,
     isFocused = false,
     canDelete = true,
@@ -68,6 +69,7 @@ export function CommitCard({
     isHighlighted?: boolean;
     isGroupedWithPrevious?: boolean;
     onAuthorHover?: (isHovering: boolean) => void;
+    onHover?: (isHovering: boolean) => void;
     actions?: ReactNode;
     isFocused?: boolean;
     canDelete?: boolean;
@@ -86,6 +88,7 @@ export function CommitCard({
     } = usePage();
     const now = useNow();
     const nodeRef = useRef<HTMLAnchorElement>(null);
+    const deleteButtonRef = useRef<HTMLButtonElement>(null);
     const thread = useThread(commit, initialReplies, loadsReplies);
     const [deletion, setDeletion] = useState<
         'idle' | 'confirming' | 'deleting'
@@ -96,6 +99,11 @@ export function CommitCard({
     const isDeletable = isOwn && canDelete;
     const hash = shortHash(commit.id);
     const permalink = CommitController.show({ user: commit.user, commit });
+
+    const cancelDeletion = () => {
+        setDeletion('idle');
+        deleteButtonRef.current?.focus();
+    };
 
     const deleteCommit = () => {
         setDeletion('deleting');
@@ -127,6 +135,11 @@ export function CommitCard({
             data-commit={commit.id}
             data-permalink={permalink.url}
             data-test="commit"
+            onPointerEnter={
+                onHover &&
+                ((event) => event.pointerType === 'mouse' && onHover(true))
+            }
+            onPointerLeave={onHover && (() => onHover(false))}
         >
             <div className="grid min-h-0 grid-cols-[4rem_minmax(0,1fr)] overflow-hidden sm:grid-cols-[4.5rem_minmax(0,1fr)]">
                 <GraphRail
@@ -174,7 +187,11 @@ export function CommitCard({
                         hasVisibleReplies ? 'pt-3' : 'border-b py-3',
                     )}
                 >
-                    <div className="flex">
+                    <div
+                        className={cn('flex transition-opacity duration-200', {
+                            'opacity-50': isDimmed,
+                        })}
+                    >
                         <div className="min-w-0 flex-1">
                             <div className="flex items-baseline gap-1.5 text-[15px]">
                                 <UserPreview
@@ -259,6 +276,7 @@ export function CommitCard({
 
                                     {isDeletable && (
                                         <button
+                                            ref={deleteButtonRef}
                                             type="button"
                                             onClick={() =>
                                                 setDeletion('confirming')
@@ -294,6 +312,7 @@ export function CommitCard({
                             )}
                             <FoldedCommitBody
                                 segments={commit.body_segments}
+                                mentions={commit.mentions}
                                 previewSegments={
                                     isFolded && !isFocused
                                         ? commit.preview_segments
@@ -409,7 +428,7 @@ export function CommitCard({
                                     aria-label="Confirm delete"
                                     onKeyDown={(event) => {
                                         if (event.key === 'Escape') {
-                                            setDeletion('idle');
+                                            cancelDeletion();
                                         }
                                     }}
                                     className="mt-3 flex min-h-12 flex-wrap items-center gap-x-3 gap-y-2 rounded-md bg-destructive/8 px-3 py-2 text-sm"
@@ -422,7 +441,7 @@ export function CommitCard({
                                         variant="ghost"
                                         size="sm"
                                         autoFocus
-                                        onClick={() => setDeletion('idle')}
+                                        onClick={cancelDeletion}
                                     >
                                         Cancel
                                     </Button>
@@ -454,7 +473,14 @@ export function CommitCard({
                                 'border-b pb-3': hasVisibleReplies,
                             })}
                         >
-                            <ThreadReplies thread={thread} depth={0} />
+                            <div
+                                className={cn(
+                                    'transition-opacity duration-200',
+                                    { 'opacity-50': isDimmed },
+                                )}
+                            >
+                                <ThreadReplies thread={thread} depth={0} />
+                            </div>
                         </div>
                     </>
                 )}

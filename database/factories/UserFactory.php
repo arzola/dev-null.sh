@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Database\Factories;
 
+use App\Enums\RemotesFrom;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Str;
@@ -64,6 +65,17 @@ final class UserFactory extends Factory
     {
         return $this->state(fn (array $attributes): array => [
             'giphy_key' => $key,
+        ]);
+    }
+
+    /**
+     * Remotes turned on. Everyone may push by default here, so tests opt into requests on purpose.
+     */
+    public function withRemotes(RemotesFrom $from = RemotesFrom::Everyone): self
+    {
+        return $this->state(fn (): array => [
+            'remotes_enabled' => true,
+            'remotes_from' => $from,
         ]);
     }
 }

@@ -9,6 +9,7 @@ import { GitHubProfile } from '@/components/github-profile';
 import Heading from '@/components/heading';
 import LanePicker from '@/components/lane-picker';
 import { PasteisModeSetting } from '@/components/pasteis-mode-setting';
+import { RemotesSetting } from '@/components/remotes-setting';
 import TimezonePicker from '@/components/timezone-picker';
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
@@ -137,6 +138,8 @@ export default function Edit({
 
             <GiphyKeySetting giphyConnected={giphyConnected} />
 
+            <RemotesSetting />
+
             <ActivityGraphEmbed
                 activityGraphUrl={activityGraphUrl}
                 profileUrl={profileUrl}
@@ -145,7 +148,7 @@ export default function Edit({
             <section className="px-4 py-6 sm:px-6">
                 <Heading
                     title="Export your data"
-                    description="Download everything we store about you: your profile, commits and replies (including pending, rejected, and deleted ones), stars, saved commits, follows, mutes, blocks, notifications, SSH key fingerprints, and active sessions."
+                    description="Download everything we store about you: your profile, commits and replies (including pending, rejected, and deleted ones), stars, saved commits, follows, mutes, blocks, the messages you sent, notifications, SSH key fingerprints, and active sessions."
                 />
                 <p className="mb-5 text-sm text-muted-foreground">
                     Other people's replies are excluded. Your export is a JSON
