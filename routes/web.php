@@ -297,14 +297,14 @@ Route::middleware('auth')->group(function (): void {
         Route::put('remotes/preferences', [UserRemotePreferencesController::class, 'update'])
             ->name('user-remote-preferences.update');
         Route::get('remotes/candidates', [RemoteCandidateController::class, 'index'])->name('remote-candidate.index');
-        Route::post('remotes/orgs', [OrgController::class, 'store'])->name('org.store');
+        Route::post('remotes/orgs', [OrgController::class, 'store'])->middleware('throttle:messages')->name('org.store');
         Route::put('remotes/orgs/{org}', [OrgController::class, 'update'])->whereUuid('org')->name('org.update');
         Route::get('remotes/orgs/{org}/messages', [OrgMessageController::class, 'index'])->whereUuid('org')->name('org-message.index');
         Route::put('remotes/orgs/{org}/read', [OrgReadController::class, 'update'])->whereUuid('org')->name('org-read.update');
         Route::put('remotes/orgs/{org}/typing', [OrgTypingController::class, 'update'])->whereUuid('org')->name('org-typing.update');
         Route::post('remotes/orgs/{org}/archive', [OrgArchiveController::class, 'store'])->whereUuid('org')->name('org-archive.store');
         Route::delete('remotes/orgs/{org}/archive', [OrgArchiveController::class, 'destroy'])->whereUuid('org')->name('org-archive.destroy');
-        Route::post('remotes/orgs/{org}/members', [OrgMemberController::class, 'store'])->whereUuid('org')->name('org-member.store');
+        Route::post('remotes/orgs/{org}/members', [OrgMemberController::class, 'store'])->whereUuid('org')->middleware('throttle:messages')->name('org-member.store');
         Route::put('remotes/orgs/{org}/members/{member:username}', [OrgMemberController::class, 'update'])->whereUuid('org')->withoutScopedBindings()->name('org-member.update');
         Route::delete('remotes/orgs/{org}/members/{member:username}', [OrgMemberController::class, 'destroy'])->whereUuid('org')->withoutScopedBindings()->name('org-member.destroy');
         Route::post('remotes/@{partner:username}/archive', [ConversationArchiveController::class, 'store'])

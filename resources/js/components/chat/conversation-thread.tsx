@@ -1205,6 +1205,7 @@ function Composer({
                     <MentionTextarea
                         id={id}
                         ref={input}
+                        org={target.kind === 'org' ? target.org.id : undefined}
                         rows={1}
                         autoFocus={autoFocus}
                         value={body}
