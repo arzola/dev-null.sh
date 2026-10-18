@@ -59,6 +59,7 @@ const onValueChange = vi.fn((next: string) => {
 });
 const onImage = vi.fn();
 const onPoll = vi.fn();
+const onIssue = vi.fn();
 
 const renderer = MentionTextarea as unknown as (
     props: Record<string, unknown>,
@@ -74,6 +75,7 @@ function render(overrides: Record<string, unknown> = {}) {
         commandContext: surface(),
         onImage,
         onPoll,
+        onIssue,
         maxLength: 4000,
         ...overrides,
     });
@@ -342,6 +344,42 @@ test('poll is absent in replies and when no poll callback is given', () => {
     );
     assert.equal(row(type('/', { onPoll: undefined }), 'poll'), undefined);
     assert.ok(row(type('/', { onPoll: undefined }), 'code'));
+});
+
+test('typing /b offers the issue commands and picking bug starts the flow', () => {
+    const tree = type('/b');
+    const bug = row(tree, 'bug')!;
+
+    assert.ok(bug);
+    assert.equal(row(tree, 'feature'), undefined);
+
+    (bug.props.onClick as () => void)();
+
+    assert.deepEqual(onIssue.mock.lastCall, ['bug', '']);
+    assert.equal(row(render(), 'bug'), undefined);
+});
+
+test('an exact issue command followed by space runs without picking', () => {
+    const tree = type('/feature');
+    const event = press(tree, ' ');
+
+    assert.equal(event.preventDefault.mock.calls.length, 1);
+    assert.deepEqual(onIssue.mock.lastCall, ['feature', '']);
+});
+
+test('issue commands need the composer callback and stay out of replies and scheduling', () => {
+    assert.equal(row(type('/b', { onIssue: undefined }), 'bug'), undefined);
+    assert.equal(
+        row(type('/', { commandContext: surface({ surface: 'reply' }) }), 'bug'),
+        undefined,
+    );
+    assert.equal(
+        row(
+            type('/', { commandContext: surface({ isScheduling: true }) }),
+            'bug',
+        ),
+        undefined,
+    );
 });
 
 test('typing a shortcode opens the emoji menu', () => {

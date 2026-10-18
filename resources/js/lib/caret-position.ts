@@ -1,8 +1,6 @@
-export type CaretMenuPosition = {
-    left: number;
-    top?: number;
-    bottom?: number;
-};
+import { suggestionPosition } from '@/lib/suggestion-position';
+
+export type CaretMenuPosition = ReturnType<typeof suggestionPosition>;
 
 // Every style that changes where text wraps, so the mirror below wraps exactly like the textarea.
 const mirroredProperties = [
@@ -67,21 +65,23 @@ function characterRect(textarea: HTMLTextAreaElement, index: number) {
 }
 
 /**
- * Where a caret menu anchored at a character of the textarea should sit, flipped above when there is no room below.
+ * Where a caret menu anchored at a character of the textarea should sit, within what the visual viewport shows.
  */
 export function caretMenuPosition(
     textarea: HTMLTextAreaElement,
     index: number,
-    menu: { width: number; height: number },
 ): CaretMenuPosition {
     const character = characterRect(textarea, index);
-    const left = Math.min(
-        Math.max(character.left - 12, 8),
-        window.innerWidth - menu.width - 8,
-    );
+    const viewport = window.visualViewport;
 
-    return character.bottom + 6 + menu.height > window.innerHeight &&
-        character.top > menu.height
-        ? { left, bottom: window.innerHeight - character.top + 6 }
-        : { left, top: character.bottom + 6 };
+    return suggestionPosition(
+        character,
+        {
+            left: viewport?.offsetLeft ?? 0,
+            top: viewport?.offsetTop ?? 0,
+            width: viewport?.width ?? window.innerWidth,
+            height: viewport?.height ?? window.innerHeight,
+        },
+        window.innerHeight,
+    );
 }

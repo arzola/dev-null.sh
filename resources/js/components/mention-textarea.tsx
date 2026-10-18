@@ -33,13 +33,6 @@ type Suggestions = {
 };
 
 const debounce = 120;
-const menuWidth = 288;
-const mentionMenuHeight = 320;
-const slashMenuHeight = 168;
-const emojiMenuHeight = 320;
-const mentionMenu = { width: menuWidth, height: mentionMenuHeight };
-const slashMenu = { width: menuWidth, height: slashMenuHeight };
-const emojiMenu = { width: menuWidth, height: emojiMenuHeight };
 const cache = new Map<string, User[]>();
 
 async function fetchSuggestions(
@@ -117,6 +110,7 @@ export function MentionTextarea({
     onBlur,
     onImage,
     onPoll,
+    onIssue,
     commandContext,
     suggestsMentions = true,
     maxLength,
@@ -127,6 +121,7 @@ export function MentionTextarea({
     onValueChange: (value: string) => void;
     onImage?: () => void;
     onPoll?: () => void;
+    onIssue?: (kind: 'bug' | 'feature', rest: string) => void;
     commandContext?: ComposerSurface;
     suggestsMentions?: boolean;
 }) {
@@ -197,19 +192,13 @@ export function MentionTextarea({
             }
 
             setToken(next);
-            setPosition(caretMenuPosition(textarea, next.start, slashMenu));
+            setPosition(caretMenuPosition(textarea, next.start));
 
             return;
         }
 
         setToken(next);
-        setPosition(
-            caretMenuPosition(
-                textarea,
-                next.start,
-                next.kind === 'mention' ? mentionMenu : emojiMenu,
-            ),
-        );
+        setPosition(caretMenuPosition(textarea, next.start));
     };
 
     useEffect(() => {
@@ -244,17 +233,10 @@ export function MentionTextarea({
             return;
         }
 
-        const menu =
-            token.kind === 'mention'
-                ? mentionMenu
-                : token.kind === 'slash'
-                  ? slashMenu
-                  : emojiMenu;
-
         const reposition = () => {
             if (textareaRef.current) {
                 setPosition(
-                    caretMenuPosition(textareaRef.current, token.start, menu),
+                    caretMenuPosition(textareaRef.current, token.start),
                 );
             }
         };
@@ -287,12 +269,23 @@ export function MentionTextarea({
             ? filterCommands(
                   availableCommands(commandContext),
                   slash.query,
-              ).filter(
-                  (option) =>
-                      (option.command.id !== 'image' ||
-                          onImage !== undefined) &&
-                      (option.command.id !== 'poll' || onPoll !== undefined),
-              )
+              ).filter((option) => {
+                  const id = option.command.id;
+
+                  if (id === 'image') {
+                      return onImage !== undefined;
+                  }
+
+                  if (id === 'poll') {
+                      return onPoll !== undefined;
+                  }
+
+                  if (id === 'bug' || id === 'feature') {
+                      return onIssue !== undefined;
+                  }
+
+                  return true;
+              })
             : [];
     const isSlashOpen =
         slash !== null && position !== null && slashOptions.length > 0;
@@ -379,6 +372,16 @@ export function MentionTextarea({
                     );
                 }
             });
+
+            return true;
+        }
+
+        if (option.command.id === 'bug' || option.command.id === 'feature') {
+            const rest = consumeSlashToken(value, slash.start, slash.query);
+
+            close();
+            requestAnimationFrame(() => textareaRef.current?.focus());
+            onIssue?.(option.command.id, rest);
 
             return true;
         }

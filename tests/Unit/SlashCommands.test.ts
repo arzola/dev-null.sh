@@ -20,7 +20,7 @@ const surface = (
     ...overrides,
 });
 
-void test('lists image, poll, and code with stock copy', () => {
+void test('lists image, poll, code, bug, and feature with stock copy', () => {
     assert.deepEqual(
         availableCommands(surface()).map((option) => [
             option.command.id,
@@ -31,11 +31,13 @@ void test('lists image, poll, and code with stock copy', () => {
             ['image', true, null],
             ['poll', true, null],
             ['code', true, null],
+            ['bug', true, null],
+            ['feature', true, null],
         ],
     );
 });
 
-void test('poll is only offered on top-level commits', () => {
+void test('poll and the issue commands are only offered on top-level commits', () => {
     for (const kind of ['reply', 'quote'] as const) {
         assert.deepEqual(
             availableCommands(surface({ surface: kind })).map(
@@ -44,6 +46,24 @@ void test('poll is only offered on top-level commits', () => {
             ['image', 'code'],
         );
     }
+});
+
+void test('issue commands are absent while scheduling and disabled by images and polls', () => {
+    const ids = (overrides: Partial<ComposerSurface>) =>
+        availableCommands(surface(overrides)).map(
+            (option) => option.command.id,
+        );
+    const reason = (id: string, overrides: Partial<ComposerSurface>) =>
+        availableCommands(surface(overrides)).find(
+            (option) => option.command.id === id,
+        )!.reason;
+
+    assert.deepEqual(ids({ isScheduling: true }), ['image', 'poll', 'code']);
+    assert.equal(
+        reason('bug', { imageCount: 1 }),
+        'Remove the images first',
+    );
+    assert.equal(reason('feature', { hasPoll: true }), 'Remove the poll first');
 });
 
 void test('image is disabled with a reason by poll and the image limit', () => {
@@ -84,11 +104,13 @@ void test('filters by prefix, aliases included', () => {
     const ids = (query: string) =>
         filterCommands(options, query).map((option) => option.command.id);
 
-    assert.deepEqual(ids(''), ['image', 'poll', 'code']);
+    assert.deepEqual(ids(''), ['image', 'poll', 'code', 'bug', 'feature']);
     assert.deepEqual(ids('i'), ['image']);
     assert.deepEqual(ids('img'), ['image']);
     assert.deepEqual(ids('po'), ['poll']);
     assert.deepEqual(ids('c'), ['code']);
+    assert.deepEqual(ids('b'), ['bug']);
+    assert.deepEqual(ids('f'), ['feature']);
     assert.deepEqual(ids('x'), []);
 });
 
@@ -97,6 +119,8 @@ void test('resolves exact names and aliases for direct runs', () => {
     assert.equal(matchCommand('img')?.id, 'image');
     assert.equal(matchCommand('poll')?.id, 'poll');
     assert.equal(matchCommand('code')?.id, 'code');
+    assert.equal(matchCommand('bug')?.id, 'bug');
+    assert.equal(matchCommand('feature')?.id, 'feature');
     assert.equal(matchCommand('imagex'), null);
     assert.equal(matchCommand(''), null);
 });

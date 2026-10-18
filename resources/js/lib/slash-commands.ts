@@ -1,10 +1,10 @@
 import type { LucideIcon } from 'lucide-react';
-import { Braces, ChartBar, ImagePlus } from 'lucide-react';
+import { Braces, Bug, ChartBar, ImagePlus, Lightbulb } from 'lucide-react';
 
 // Keep in sync with maxImages in resources/js/components/commit-image-picker.tsx.
 const maxImages = 3;
 
-export type SlashCommandId = 'image' | 'poll' | 'code';
+export type SlashCommandId = 'image' | 'poll' | 'code' | 'bug' | 'feature';
 
 export type SlashCommand = {
     id: SlashCommandId;
@@ -50,7 +50,28 @@ const commands: SlashCommand[] = [
         aliases: [],
         icon: Braces,
     },
+    {
+        id: 'bug',
+        label: 'Bug',
+        description: 'Report a bug',
+        aliases: [],
+        icon: Bug,
+    },
+    {
+        id: 'feature',
+        label: 'Feature',
+        description: 'Request a feature',
+        aliases: [],
+        icon: Lightbulb,
+    },
 ];
+
+/**
+ * The commands that turn the draft into a GitHub issue.
+ */
+export function isIssueCommand(command: SlashCommand): boolean {
+    return command.id === 'bug' || command.id === 'feature';
+}
 
 function disabledReason(
     command: SlashCommand,
@@ -80,6 +101,18 @@ function disabledReason(
         return null;
     }
 
+    if (isIssueCommand(command)) {
+        if (surface.hasPoll) {
+            return 'Remove the poll first';
+        }
+
+        if (surface.imageCount > 0) {
+            return 'Remove the images first';
+        }
+
+        return null;
+    }
+
     return null;
 }
 
@@ -88,9 +121,16 @@ function disabledReason(
  */
 export function availableCommands(surface: ComposerSurface): SlashOption[] {
     return commands
-        .filter(
-            (command) => command.id !== 'poll' || surface.surface === 'commit',
-        )
+        .filter((command) => {
+            if (
+                (command.id === 'poll' || isIssueCommand(command)) &&
+                surface.surface !== 'commit'
+            ) {
+                return false;
+            }
+
+            return !(isIssueCommand(command) && surface.isScheduling);
+        })
         .map((command) => {
             if (surface.processing) {
                 return { command, enabled: false, reason: null };

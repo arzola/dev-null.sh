@@ -1,7 +1,12 @@
 import { usePage, usePoll } from '@inertiajs/react';
 import { useCallback, useState } from 'react';
 import { AppAside } from '@/components/app-aside';
-import { AppNav, MobileHeader, MobileNav } from '@/components/app-nav';
+import {
+    AppNav,
+    MobileCommitButton,
+    MobileHeader,
+    MobileNav,
+} from '@/components/app-nav';
 import { ChatDock } from '@/components/chat/chat-dock';
 import {
     CommitComposerDialog,
@@ -10,6 +15,7 @@ import {
 import { CommitImageViewer } from '@/components/commit-image-viewer';
 import { CommitStarPolling } from '@/components/commit-star-polling';
 import { KeyboardShortcutsDialog } from '@/components/keyboard-shortcuts-dialog';
+import { LocalSignInDialog } from '@/components/local-sign-in-dialog';
 import { SearchDialog } from '@/components/search-dialog';
 import { useKeyboardShortcuts } from '@/hooks/use-keyboard-shortcuts';
 import { useTabSlide } from '@/hooks/use-tab-slide';
@@ -57,8 +63,8 @@ export default function AppLayout({ children }: AppLayoutProps) {
 
             <main
                 className={cn(
-                    'min-w-0 flex-1 bg-card pb-20 md:max-w-[620px] md:border-x md:pb-0',
-                    { 'md:max-w-[940px]': isMessages },
+                    'min-w-0 flex-1 bg-card pb-40 md:max-w-[620px] md:border-x md:pb-0',
+                    { 'pb-20 md:max-w-[940px]': isMessages },
                 )}
             >
                 <MobileHeader onSearch={openSearch} />
@@ -71,6 +77,8 @@ export default function AppLayout({ children }: AppLayoutProps) {
                     onSearch={openSearch}
                 />
             )}
+
+            {!isMessages && <MobileCommitButton onCompose={compose} />}
 
             <MobileNav />
 
@@ -92,6 +100,8 @@ export default function AppLayout({ children }: AppLayoutProps) {
                 onOpenChange={setIsShowingShortcuts}
                 canModerate={auth.isAdmin}
             />
+
+            {isGuest && <LocalSignInDialog />}
         </div>
     );
 }
