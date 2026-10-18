@@ -5,6 +5,8 @@ import {
     Bookmark,
     ExternalLink,
     GitCommitVertical,
+    History,
+    Menu,
     MessagesSquare,
     Search,
     Settings2,
@@ -13,7 +15,7 @@ import {
     UserRound,
 } from 'lucide-react';
 import type { ReactNode } from 'react';
-import { useLayoutEffect, useRef } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 import BookmarkController from '@/actions/App/Http/Controllers/BookmarkController';
 import ConversationController from '@/actions/App/Http/Controllers/ConversationController';
 import LogController from '@/actions/App/Http/Controllers/LogController';
@@ -22,19 +24,22 @@ import NotificationController from '@/actions/App/Http/Controllers/NotificationC
 import OperationsController from '@/actions/App/Http/Controllers/OperationsController';
 import AppLogo from '@/components/app-logo';
 import AppLogoIcon from '@/components/app-logo-icon';
+import { ChangelogDialog } from '@/components/changelog-dialog';
 import { GitHubIcon } from '@/components/github-icon';
 import { Button } from '@/components/ui/button';
 import {
     DropdownMenu,
     DropdownMenuContent,
+    DropdownMenuItem,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { UserAvatar } from '@/components/user-avatar';
 import { UserMenuContent } from '@/components/user-menu-content';
+import { useChangelog } from '@/hooks/use-changelog';
 import { useUnreadMessages } from '@/hooks/use-chat';
 import { useCurrentUrl } from '@/hooks/use-current-url';
 import { useKeyLabels } from '@/lib/keyboard';
-import { cn, toUrl } from '@/lib/utils';
+import { browserTimeZone, cn, toUrl } from '@/lib/utils';
 import { home, login } from '@/routes';
 import { show } from '@/routes/user';
 import { edit } from '@/routes/user-profile';
@@ -415,8 +420,25 @@ export function MobileHeader({ onSearch }: { onSearch: () => void }) {
  * Shares its real height, safe area included, as `--mobile-nav-height`, so full-screen pages can end right above it.
  */
 export function MobileNav() {
-    const items = useNavItems().filter(
-        (item) => !['Saved', 'Operations'].includes(item.title),
+    const { auth } = usePage().props;
+    const timeZone = auth.user?.timezone ?? browserTimeZone();
+    const {
+        changelog,
+        hasFailed,
+        isLoadingOlder,
+        hasOlderFailed,
+        load,
+        loadOlder,
+    } = useChangelog(timeZone);
+    const [isChangelogOpen, setIsChangelogOpen] = useState(false);
+    const allItems = useNavItems();
+    const menuItems = allItems.filter((item) =>
+        ['Profile', 'Settings', 'Operations'].includes(item.title),
+    );
+    const items = allItems.filter(
+        (item) =>
+            item.title !== 'Saved' &&
+            !menuItems.some((menuItem) => menuItem.title === item.title),
     );
     const nav = useRef<HTMLElement>(null);
 
@@ -477,6 +499,85 @@ export function MobileNav() {
                     <span className="max-w-full truncate">{item.title}</span>
                 </NavLink>
             ))}
+            <DropdownMenu>
+                <DropdownMenuTrigger
+                    aria-label="More navigation"
+                    className={cn(
+                        'flex min-w-0 flex-1 flex-col items-center gap-1 py-1 text-[11px] font-medium tracking-tight text-muted-foreground',
+                        {
+                            'text-primary': menuItems.some(
+                                (item) => item.isActive,
+                            ),
+                        },
+                    )}
+                >
+                    <span
+                        className={cn(
+                            'flex h-8 w-14 max-w-full items-center justify-center rounded-full',
+                            {
+                                'bg-primary-soft': menuItems.some(
+                                    (item) => item.isActive,
+                                ),
+                            },
+                        )}
+                    >
+                        <Menu className="size-5" />
+                    </span>
+                    <span>Menu</span>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent
+                    className="w-48 md:hidden"
+                    side="top"
+                    align="end"
+                >
+                    {menuItems.map((item) => (
+                        <DropdownMenuItem key={item.title} asChild>
+                            {auth.user === null ? (
+                                <a href={toUrl(item.href)} className="min-h-11">
+                                    {item.icon && <item.icon />}
+                                    {item.title}
+                                </a>
+                            ) : (
+                                <Link
+                                    href={item.href}
+                                    prefetch={item.prefetch ?? true}
+                                    viewTransition
+                                    aria-current={
+                                        item.isActive ? 'page' : undefined
+                                    }
+                                    className={cn('min-h-11', {
+                                        'bg-primary-soft text-primary':
+                                            item.isActive,
+                                    })}
+                                >
+                                    {item.icon && <item.icon />}
+                                    {item.title}
+                                </Link>
+                            )}
+                        </DropdownMenuItem>
+                    ))}
+                    <DropdownMenuItem
+                        className="min-h-11"
+                        onSelect={() => {
+                            load();
+                            setIsChangelogOpen(true);
+                        }}
+                    >
+                        <History />
+                        Changelog
+                    </DropdownMenuItem>
+                </DropdownMenuContent>
+            </DropdownMenu>
+            <ChangelogDialog
+                open={isChangelogOpen}
+                onOpenChange={setIsChangelogOpen}
+                changelog={changelog}
+                hasFailed={hasFailed}
+                isLoadingOlder={isLoadingOlder}
+                hasOlderFailed={hasOlderFailed}
+                onLoadOlder={loadOlder}
+                timeZone={timeZone}
+            />
         </nav>
     );
 }

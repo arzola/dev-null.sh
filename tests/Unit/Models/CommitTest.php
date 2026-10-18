@@ -32,6 +32,7 @@ test('to array', function (): void {
             'gif',
             'body_segments',
             'preview_segments',
+            'is_checking',
         ]);
 });
 

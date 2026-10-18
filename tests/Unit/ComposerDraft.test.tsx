@@ -326,11 +326,7 @@ test('schedules in UTC with pasted images and the chosen link card', () => {
     const dateInput = view.fields.find(
         (element) => element.props.id === 'body-scheduled-at',
     )!;
-    const setCustomValidity = vi.fn();
-    (dateInput.props.onChange as (event: unknown) => void)({
-        target: { value: date, setCustomValidity },
-    });
-    assert.deepEqual(setCustomValidity.mock.lastCall, ['']);
+    (dateInput.props.onChange as (value: string) => void)(date);
     view = render();
     const scheduledAt = new Date(date)
         .toISOString()
@@ -488,8 +484,12 @@ test('attaching images while a gif is stashed clears the gif and submits the ima
     )!;
     assert.equal(schedule.props.disabled, true);
     assert.equal(
-        schedule.props.title,
-        "A commit with a GIF can't be scheduled yet",
+        view.fields.some(
+            (element) =>
+                element.props.label ===
+                "A commit with a GIF can't be scheduled yet",
+        ),
+        true,
     );
     (
         view.fields.find((element) => element.type === ImagePickerButton)!
@@ -527,13 +527,11 @@ test('a gif stashed while scheduling blocks submit and never reaches the transfo
     )();
     view = render();
     const date = '2026-10-17T10:30';
-    const setCustomValidity = vi.fn();
     (
-        view.fields.find((element) => element.props.id === 'body-scheduled-at')!
-            .props.onChange as (event: unknown) => void
-    )({
-        target: { value: date, setCustomValidity },
-    });
+        view.fields.find(
+            (element) => element.props.id === 'body-scheduled-at',
+        )!.props.onChange as (value: string) => void
+    )(date);
     view = render();
     draft.updateGif(gif);
     view = render();
@@ -549,4 +547,30 @@ test('a gif stashed while scheduling blocks submit and never reaches the transfo
             .toISOString()
             .replace(/\.\d{3}Z$/, '+00:00'),
     });
+test('turning scheduling off clears the chosen time and commits now', () => {
+    const find = (key: string, value: unknown) =>
+        render().fields.find((element) => element.props[key] === value);
+    const label = (element: Element) =>
+        React.Children.toArray(element.props.children as ReactNode)
+            .filter((child) => typeof child === 'string')
+            .join('');
+    const submit = () => find('data-test', 'create-commit-button')!;
+
+    (find('aria-controls', 'body-schedule')!.props.onClick as () => void)();
+    assert.equal(submit().props.disabled, true);
+    (find('id', 'body-scheduled-at')!.props.onChange as (value: string) => void)(
+        '2026-10-17T10:30',
+    );
+    assert.equal(submit().props.disabled, false);
+    assert.equal(label(submit()), 'Schedule commit');
+
+    (find('aria-controls', 'body-schedule')!.props.onClick as () => void)();
+    assert.equal(find('id', 'body-scheduled-at'), undefined);
+    assert.equal(label(submit()), 'Commit');
+    assert.deepEqual(render().form.props.transform({ body: draft.body }), {
+        body: draft.body,
+    });
+
+    (find('aria-controls', 'body-schedule')!.props.onClick as () => void)();
+    assert.equal(find('id', 'body-scheduled-at')!.props.value, '');
 });
