@@ -547,6 +547,8 @@ test('a gif stashed while scheduling blocks submit and never reaches the transfo
             .toISOString()
             .replace(/\.\d{3}Z$/, '+00:00'),
     });
+});
+
 test('turning scheduling off clears the chosen time and commits now', () => {
     const find = (key: string, value: unknown) =>
         render().fields.find((element) => element.props[key] === value);

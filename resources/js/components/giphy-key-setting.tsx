@@ -5,7 +5,6 @@ import {
     update,
 } from '@/actions/App/Http/Controllers/GiphyKeyController';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
 import { validateGiphyKey } from '@/lib/giphy';
@@ -134,12 +133,14 @@ export function GiphyKeySetting({
                 <div className="mt-4 max-w-md space-y-2">
                     <Label htmlFor="giphy-key-input">GIPHY API key</Label>
                     <div className="flex gap-2">
-                        <Input
+                        <input
                             id="giphy-key-input"
                             value={key}
                             onChange={(event) => setKey(event.target.value)}
                             placeholder="Paste your GIPHY API key"
                             autoComplete="off"
+                            spellCheck={false}
+                            className="h-9 min-w-0 flex-1 rounded-md border bg-card px-3 text-base outline-none placeholder:text-muted-foreground focus-visible:border-primary md:text-sm"
                             data-test="giphy-key-input"
                         />
                         <Button

@@ -7,7 +7,6 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
 import type { GiphyResult } from '@/lib/giphy';
 import {
     attachmentFromResult,
@@ -106,12 +105,15 @@ export function GiphyPickerDialog({
                         Search GIPHY and pick a GIF to attach.
                     </DialogDescription>
                 </DialogHeader>
-                <Input
+                <input
                     autoFocus
                     value={query}
                     onChange={(event) => setQuery(event.target.value)}
                     placeholder="grep giphy…"
                     aria-label="Search GIPHY"
+                    autoComplete="off"
+                    spellCheck={false}
+                    className="h-9 w-full min-w-0 rounded-md border bg-card px-3 text-base outline-none placeholder:text-muted-foreground focus-visible:border-primary md:text-sm"
                     data-test="giphy-search-input"
                 />
                 {status === 'loading' && (
