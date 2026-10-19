@@ -382,6 +382,16 @@ test('issue commands need the composer callback and stay out of replies and sche
     );
 });
 
+test('the menu closes when the composer loses focus', () => {
+    const tree = type('/b');
+
+    assert.ok(row(tree, 'bug'));
+
+    (field(tree).props.onBlur as (event: unknown) => void)({});
+
+    assert.equal(row(render(), 'bug'), undefined);
+});
+
 test('typing a shortcode opens the emoji menu', () => {
     const tree = type('ship it :sm');
 
