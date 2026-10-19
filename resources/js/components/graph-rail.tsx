@@ -1,12 +1,14 @@
 import type { CSSProperties, ReactNode } from 'react';
 import { LiveAvatarMarker } from '@/components/live-stream-card';
 import { UserAvatar } from '@/components/user-avatar';
-import { cn } from '@/lib/utils';
+import { cn, laneStrokeStyle } from '@/lib/utils';
 import type { User } from '@/types';
 
 type Props = {
     lane: string;
     previousLane?: string;
+    /** When set, the outbound rail fades into this lane toward the next commit. */
+    nextLane?: string;
     variant?: 'commit' | 'staged' | 'root';
     isFilled?: boolean;
     isFresh?: boolean;
@@ -28,6 +30,7 @@ const dimmedNode = 'group-data-dimmed/rail-node:opacity-60';
 export function GraphRail({
     lane,
     previousLane,
+    nextLane,
     variant = 'commit',
     isFilled = true,
     isFresh = false,
@@ -65,16 +68,18 @@ export function GraphRail({
             {previousLane && variant !== 'staged' && (
                 <span
                     className={cn(
-                        'absolute top-0 left-1/2 h-8 w-0.5 -translate-x-1/2',
+                        // Overlap the tail by 1px so abutting edges don't flash a hairline gap.
+                        'absolute top-0 left-1/2 h-[calc(2rem+1px)] w-0.5 -translate-x-1/2',
                         dimmable,
                         {
                             'opacity-60': isPreviousDimmed,
-                            'h-1/2': nodePosition === 'center',
-                            'h-[23px]': nodePosition === 'author',
+                            'h-[calc(50%+1px)]': nodePosition === 'center',
+                            'h-6': nodePosition === 'author',
                             'bottom-5 h-auto': nodePosition === 'bottom',
                         },
                     )}
-                    style={{ background: previousLane }}
+                    style={{ background: lane }}
+                    data-test="rail-previous"
                 />
             )}
 
@@ -84,15 +89,21 @@ export function GraphRail({
                 ) : (
                     <span
                         className={cn(
-                            'absolute top-8 bottom-0 left-1/2 w-0.5 -translate-x-1/2 bg-(--lane)',
+                            // Start 1px early so this meets the previous segment without a seam.
+                            'absolute top-[calc(2rem-1px)] bottom-0 left-1/2 w-0.5 -translate-x-1/2',
                             dimmable,
                             {
                                 'opacity-60': isDimmed,
                                 'bottom-5': endsWithDot,
-                                'top-1/2': nodePosition === 'center',
-                                'top-[23px]': nodePosition === 'author',
+                                'top-[calc(50%-1px)]':
+                                    nodePosition === 'center',
+                                'top-[22px]': nodePosition === 'author',
                             },
                         )}
+                        style={laneStrokeStyle(lane, nextLane ?? lane, {
+                            dashed: false,
+                        })}
+                        data-test="rail-tail"
                     />
                 ))}
 

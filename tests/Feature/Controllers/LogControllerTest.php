@@ -475,7 +475,7 @@ it('includes the images and link previews of quoted commits', function (Log $log
 })->with(Log::cases());
 
 it('loads the quoted commits of a log without a query per commit', function (Log $log): void {
-    $user = User::factory()->create(['log' => $log]);
+    $user = User::factory()->create(['log' => $log, 'last_seen_at' => today()]);
 
     $queries = function () use ($user, $log): int {
         DB::flushQueryLog();

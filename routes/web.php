@@ -63,6 +63,7 @@ use App\Http\Controllers\OrgMessageController;
 use App\Http\Controllers\OrgReadController;
 use App\Http\Controllers\OrgTypingController;
 use App\Http\Controllers\PrivacyController;
+use App\Http\Controllers\ProductMetricsController;
 use App\Http\Controllers\RemoteCandidateController;
 use App\Http\Controllers\ReportedCommitController;
 use App\Http\Controllers\SafetyController;
@@ -360,6 +361,7 @@ Route::middleware('auth')->group(function (): void {
     Route::get('operations/features', [FeatureController::class, 'index'])->name('feature.index');
     Route::get('operations/activity', [SiteActivityController::class, 'show'])->name('site-activity.show');
     Route::get('operations/traffic', [TrafficController::class, 'show'])->name('traffic.show');
+    Route::get('operations/metrics', [ProductMetricsController::class, 'show'])->name('product-metrics.show');
     Route::post('operations/failed-jobs/{failedJob}/retry', [FailedJobRetryController::class, 'store'])
         ->whereUuid('failedJob')
         ->name('failed-job-retry.store');

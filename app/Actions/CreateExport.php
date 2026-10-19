@@ -62,6 +62,7 @@ final readonly class CreateExport
                 'live_platform' => $user->live_platform?->value,
                 'live_url' => $user->live_url,
                 'live_ends_at' => $user->live_ends_at?->toIso8601String(),
+                'last_seen_at' => $user->last_seen_at?->toDateString(),
                 'created_at' => $user->created_at->toIso8601String(),
                 'updated_at' => $user->updated_at->toIso8601String(),
             ],

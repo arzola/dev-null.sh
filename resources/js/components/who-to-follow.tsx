@@ -156,8 +156,8 @@ export function SuggestedUserRow({
                         data-test="suggested-follow-button"
                     />
                 </div>
-                {isStacked && details && (
-                    <div className="mt-1.5 pl-12">{details}</div>
+                {isStacked && (
+                    <div className="mt-1.5 min-h-8 pl-12">{details}</div>
                 )}
             </div>
         </li>
@@ -195,14 +195,16 @@ function SuggestedUsersSkeleton({
                             className={cn('h-8 w-24 shrink-0', buttonClassName)}
                         />
                     </div>
-                    {isStacked && <div className="mt-1.5 pl-12">{details}</div>}
+                    {isStacked && (
+                        <div className="mt-1.5 min-h-8 pl-12">{details}</div>
+                    )}
                 </li>
             ))}
         </>
     );
 }
 
-function WhoToFollowRefreshButton() {
+function WhoToFollowRefreshButton({ disabled }: { disabled: boolean }) {
     const { isRefreshing, refreshSuggestedUsers } = useWhoToFollow();
 
     return (
@@ -211,6 +213,7 @@ function WhoToFollowRefreshButton() {
             size="icon"
             className="size-7 text-muted-foreground"
             onClick={refreshSuggestedUsers}
+            disabled={disabled}
             aria-disabled={isRefreshing}
             aria-label="Suggest other people"
             title="Suggest other people"
@@ -234,7 +237,7 @@ function WhoToFollowActions({
 }) {
     return (
         <div className="flex items-center gap-1">
-            {hasSuggestions && <WhoToFollowRefreshButton />}
+            <WhoToFollowRefreshButton disabled={!hasSuggestions} />
             <WhoToFollowMenu onHide={onHide} />
         </div>
     );
@@ -333,7 +336,7 @@ export function WhoToFollow() {
     return (
         <section
             aria-labelledby="aside-who-to-follow"
-            className="border-t pt-6"
+            className="-mt-4 border-t pt-4"
         >
             <div className="mb-3 flex items-center justify-between gap-2">
                 <h2 id="aside-who-to-follow" className="text-sm font-semibold">

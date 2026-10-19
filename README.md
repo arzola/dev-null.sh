@@ -26,7 +26,7 @@ Outside the local environment, users sign in with GitHub. Create a [GitHub OAuth
 
 ### Issue commands
 
-The `/feature` and `/bug` commands below the composer open an issue on `nunomaduro/dev-null.sh` from the draft, as a GitHub App crediting the reporter. No user grants any extra permission and no user token is stored. Create a [GitHub App](https://github.com/settings/apps/new) with webhooks disabled and only the **Issues: Read and write** repository permission, install it on `nunomaduro/dev-null.sh` alone, generate a private key, then set `GITHUB_APP_ID` and `GITHUB_APP_PRIVATE_KEY` (the PEM contents, with newlines written as `\n`) in `.env`. Each installation token is requested for issues on this repository only and is cached, encrypted, for 50 minutes.
+The `/feature` and `/bug` slash commands in the composer open an issue on `nunomaduro/dev-null.sh` from the draft, as a GitHub App crediting the reporter. No user grants any extra permission and no user token is stored. Create a [GitHub App](https://github.com/settings/apps/new) with webhooks disabled and only the **Issues: Read and write** repository permission, install it on `nunomaduro/dev-null.sh` alone, generate a private key, then set `GITHUB_APP_ID` and `GITHUB_APP_PRIVATE_KEY` (the PEM contents, with newlines written as `\n`) in `.env`. Each installation token is requested for issues on this repository only and is cached, encrypted, for 50 minutes.
 
 ### Embeds
 
