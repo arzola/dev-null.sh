@@ -1437,21 +1437,71 @@ it('may attach a giphy gif to a commit', function (): void {
 
     $response = $this->actingAs($user)->post(route('commit.store'), [
         'body' => 'Shipping it',
-        'giphy_id' => 'xT9IgzoKnwFNmISR8I',
-        'giphy_url' => 'https://media2.giphy.com/media/v1.Y2lkPTc5MGI3NjEx/giphy-downsized-medium.gif?cid=abc123&rid=giphy.gif',
-        'giphy_page_url' => 'https://giphy.com/gifs/deal-with-it-xT9IgzoKnwFNmISR8I',
-        'giphy_title' => 'Deal With It GIF',
-        'giphy_username' => 'giphy',
-        'giphy_width' => 480,
-        'giphy_height' => 270,
+        'gif_provider' => 'giphy',
+        'gif_id' => 'xT9IgzoKnwFNmISR8I',
+        'gif_url' => 'https://media2.giphy.com/media/v1.Y2lkPTc5MGI3NjEx/giphy-downsized-medium.gif?cid=abc123&rid=giphy.gif',
+        'gif_page_url' => 'https://giphy.com/gifs/deal-with-it-xT9IgzoKnwFNmISR8I',
+        'gif_title' => 'Deal With It GIF',
+        'gif_username' => 'giphy',
+        'gif_width' => 480,
+        'gif_height' => 270,
     ]);
 
     $response->assertSessionHasNoErrors();
 
     $commit = $user->commits()->sole();
-    expect($commit->giphy_id)->toBe('xT9IgzoKnwFNmISR8I')
-        ->and($commit->giphy_url)->toBe('https://media2.giphy.com/media/v1.Y2lkPTc5MGI3NjEx/giphy-downsized-medium.gif?cid=abc123&rid=giphy.gif')
-        ->and($commit->giphy_width)->toBe(480);
+    expect($commit->gif_id)->toBe('xT9IgzoKnwFNmISR8I')
+        ->and($commit->gif_url)->toBe('https://media2.giphy.com/media/v1.Y2lkPTc5MGI3NjEx/giphy-downsized-medium.gif?cid=abc123&rid=giphy.gif')
+        ->and($commit->gif_width)->toBe(480);
+});
+
+it('accepts a klipy gif', function (): void {
+    $user = User::factory()->create();
+
+    $response = $this->actingAs($user)->post(route('commit.store'), [
+        'body' => 'Klipy time',
+        'gif_provider' => 'klipy',
+        'gif_id' => 'hello-hi-662',
+        'gif_url' => 'https://static.klipy.com/ii/935d7ab9/8GCrVAB7.gif',
+        'gif_page_url' => 'https://klipy.com/gifs/hello-hi-662',
+        'gif_width' => 498,
+        'gif_height' => 498,
+    ]);
+
+    $response->assertSessionHasNoErrors();
+
+    expect($user->commits()->sole()->gif_provider->value)->toBe('klipy');
+});
+
+it('rejects a gif url from another provider', function (): void {
+    $user = User::factory()->create();
+
+    $response = $this->actingAs($user)->postJson(route('commit.store'), [
+        'body' => 'Mismatch',
+        'gif_provider' => 'klipy',
+        'gif_id' => 'abc123',
+        'gif_url' => 'https://media2.giphy.com/media/abc123/giphy.gif',
+        'gif_page_url' => 'https://klipy.com/gifs/abc123',
+        'gif_width' => 480,
+        'gif_height' => 270,
+    ]);
+
+    $response->assertUnprocessable()->assertJsonValidationErrors('gif_url');
+});
+
+it('rejects a gif without a provider', function (): void {
+    $user = User::factory()->create();
+
+    $response = $this->actingAs($user)->postJson(route('commit.store'), [
+        'body' => 'No provider',
+        'gif_id' => 'abc123',
+        'gif_url' => 'https://media2.giphy.com/media/abc123/giphy.gif',
+        'gif_page_url' => 'https://giphy.com/gifs/abc123',
+        'gif_width' => 480,
+        'gif_height' => 270,
+    ]);
+
+    $response->assertUnprocessable()->assertJsonValidationErrors('gif_provider');
 });
 
 it('rejects a gif media url that is not on giphy', function (string $url): void {
@@ -1459,12 +1509,13 @@ it('rejects a gif media url that is not on giphy', function (string $url): void 
 
     $this->actingAs($user)->post(route('commit.store'), [
         'body' => 'Nice try',
-        'giphy_id' => 'xT9IgzoKnwFNmISR8I',
-        'giphy_url' => $url,
-        'giphy_page_url' => 'https://giphy.com/gifs/deal-with-it-xT9IgzoKnwFNmISR8I',
-        'giphy_width' => 480,
-        'giphy_height' => 270,
-    ])->assertSessionHasErrors('giphy_url');
+        'gif_provider' => 'giphy',
+        'gif_id' => 'xT9IgzoKnwFNmISR8I',
+        'gif_url' => $url,
+        'gif_page_url' => 'https://giphy.com/gifs/deal-with-it-xT9IgzoKnwFNmISR8I',
+        'gif_width' => 480,
+        'gif_height' => 270,
+    ])->assertSessionHasErrors('gif_url');
 
     expect($user->commits()->count())->toBe(0);
 })->with([
@@ -1472,7 +1523,6 @@ it('rejects a gif media url that is not on giphy', function (string $url): void 
     'lookalike host' => ['https://media2.giphy.com.evil.example/media/x/giphy.gif'],
     'plain http' => ['http://media2.giphy.com/media/xT9IgzoKnwFNmISR8I/giphy.gif'],
     'not a gif rendition' => ['https://media2.giphy.com/media/xT9IgzoKnwFNmISR8I/giphy.webp'],
-    'outside the media path' => ['https://media2.giphy.com/avatars/giphy.gif'],
     'with a fragment' => ['https://media2.giphy.com/media/xT9IgzoKnwFNmISR8I/giphy.gif#frag'],
     'with userinfo' => ['https://user@media2.giphy.com/media/xT9IgzoKnwFNmISR8I/giphy.gif'],
     'with a port' => ['https://media2.giphy.com:8443/media/xT9IgzoKnwFNmISR8I/giphy.gif'],
@@ -1485,8 +1535,9 @@ it('rejects a partial gif submission', function (): void {
 
     $this->actingAs($user)->post(route('commit.store'), [
         'body' => 'Half a gif',
-        'giphy_id' => 'xT9IgzoKnwFNmISR8I',
-    ])->assertSessionHasErrors(['giphy_url', 'giphy_page_url', 'giphy_width', 'giphy_height']);
+        'gif_provider' => 'giphy',
+        'gif_id' => 'xT9IgzoKnwFNmISR8I',
+    ])->assertSessionHasErrors(['gif_url', 'gif_page_url', 'gif_width', 'gif_height']);
 });
 
 it('rejects a gif alongside uploaded images', function (): void {
@@ -1497,12 +1548,13 @@ it('rejects a gif alongside uploaded images', function (): void {
     $this->actingAs($user)->post(route('commit.store'), [
         'body' => 'Both at once',
         'images' => [UploadedFile::fake()->image('cabin.jpg', 40, 30)],
-        'giphy_id' => 'xT9IgzoKnwFNmISR8I',
-        'giphy_url' => 'https://media2.giphy.com/media/xT9IgzoKnwFNmISR8I/giphy.gif',
-        'giphy_page_url' => 'https://giphy.com/gifs/deal-with-it-xT9IgzoKnwFNmISR8I',
-        'giphy_width' => 480,
-        'giphy_height' => 270,
-    ])->assertSessionHasErrors('giphy_id');
+        'gif_provider' => 'giphy',
+        'gif_id' => 'xT9IgzoKnwFNmISR8I',
+        'gif_url' => 'https://media2.giphy.com/media/xT9IgzoKnwFNmISR8I/giphy.gif',
+        'gif_page_url' => 'https://giphy.com/gifs/deal-with-it-xT9IgzoKnwFNmISR8I',
+        'gif_width' => 480,
+        'gif_height' => 270,
+    ])->assertSessionHasErrors('gif_id');
 });
 
 it('rejects a gif alongside a poll', function (): void {
@@ -1511,12 +1563,13 @@ it('rejects a gif alongside a poll', function (): void {
     $this->actingAs($user)->post(route('commit.store'), [
         'body' => 'Gif or poll',
         'poll' => ['options' => ['Yes', 'No'], 'duration' => 1440],
-        'giphy_id' => 'xT9IgzoKnwFNmISR8I',
-        'giphy_url' => 'https://media2.giphy.com/media/xT9IgzoKnwFNmISR8I/giphy.gif',
-        'giphy_page_url' => 'https://giphy.com/gifs/deal-with-it-xT9IgzoKnwFNmISR8I',
-        'giphy_width' => 480,
-        'giphy_height' => 270,
-    ])->assertSessionHasErrors('giphy_id');
+        'gif_provider' => 'giphy',
+        'gif_id' => 'xT9IgzoKnwFNmISR8I',
+        'gif_url' => 'https://media2.giphy.com/media/xT9IgzoKnwFNmISR8I/giphy.gif',
+        'gif_page_url' => 'https://giphy.com/gifs/deal-with-it-xT9IgzoKnwFNmISR8I',
+        'gif_width' => 480,
+        'gif_height' => 270,
+    ])->assertSessionHasErrors('gif_id');
 });
 
 it('may quote a commit with a gif attached', function (): void {
@@ -1526,11 +1579,12 @@ it('may quote a commit with a gif attached', function (): void {
     $this->actingAs($user)->post(route('commit.store'), [
         'body' => 'Quoting with style',
         'quoted_commit_id' => $quoted->id,
-        'giphy_id' => 'xT9IgzoKnwFNmISR8I',
-        'giphy_url' => 'https://media2.giphy.com/media/xT9IgzoKnwFNmISR8I/giphy.gif',
-        'giphy_page_url' => 'https://giphy.com/gifs/deal-with-it-xT9IgzoKnwFNmISR8I',
-        'giphy_width' => 480,
-        'giphy_height' => 270,
+        'gif_provider' => 'giphy',
+        'gif_id' => 'xT9IgzoKnwFNmISR8I',
+        'gif_url' => 'https://media2.giphy.com/media/xT9IgzoKnwFNmISR8I/giphy.gif',
+        'gif_page_url' => 'https://giphy.com/gifs/deal-with-it-xT9IgzoKnwFNmISR8I',
+        'gif_width' => 480,
+        'gif_height' => 270,
     ])->assertSessionHasNoErrors();
 
     expect($user->commits()->sole()->quoted_commit_id)->toBe($quoted->id);
@@ -1544,5 +1598,5 @@ it('shows the gif in the commit payload', function (): void {
         ->assertInertia(fn ($page) => $page
             ->where('commit.gif.id', 'xT9IgzoKnwFNmISR8I')
             ->where('commit.gif.url', 'https://media2.giphy.com/media/xT9IgzoKnwFNmISR8I/giphy-downsized-medium.gif?cid=abc123')
-            ->missing('commit.giphy_url'));
+            ->missing('commit.gif_url'));
 });

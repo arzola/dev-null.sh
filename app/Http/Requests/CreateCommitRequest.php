@@ -5,12 +5,14 @@ declare(strict_types=1);
 namespace App\Http\Requests;
 
 use App\Actions\CreateCommitImages;
-use App\Dto\Giphy;
+use App\Dto\Gif;
 use App\Dto\NewPoll;
+use App\Enums\GifProvider;
 use App\Enums\PollDuration;
 use App\Models\Commit;
 use App\Models\User;
-use App\Rules\GiphyMediaUrl;
+use App\Rules\GifMediaUrl;
+use App\Rules\GifPageUrl;
 use App\Rules\VisibleCommit;
 use App\Services\CommitBodies;
 use App\Services\Urls;
@@ -47,7 +49,7 @@ final class CreateCommitRequest extends FormRequest
      *
      * @return array<string, array<int, string|ValidationRule|File|Dimensions|Enum>>
      */
-    public static function attachmentRules(): array
+    public static function attachmentRules(GifProvider $provider = GifProvider::Giphy): array
     {
         return [
             'poll' => ['nullable', 'array:options,duration', 'prohibits:parent_id,images'],
@@ -65,13 +67,14 @@ final class CreateCommitRequest extends FormRequest
             ],
             'image_descriptions' => ['nullable', 'list', 'max:'.CreateCommitImages::MAX_IMAGES],
             'image_descriptions.*' => ['nullable', 'string', 'max:'.CreateCommitImages::MAX_DESCRIPTION_LENGTH],
-            'giphy_id' => ['nullable', 'string', 'max:64', 'regex:/^[A-Za-z0-9]+$/', 'prohibits:images,poll', 'required_with:giphy_url'],
-            'giphy_url' => ['nullable', 'string', 'max:2048', 'required_with:giphy_id', new GiphyMediaUrl],
-            'giphy_page_url' => ['nullable', 'string', 'max:2048', 'required_with:giphy_id', 'url:https', 'regex:#^https://(www\.)?giphy\.com/#'],
-            'giphy_title' => ['nullable', 'string', 'max:300'],
-            'giphy_username' => ['nullable', 'string', 'max:100'],
-            'giphy_width' => ['nullable', 'integer', 'min:1', 'max:10000', 'required_with:giphy_id'],
-            'giphy_height' => ['nullable', 'integer', 'min:1', 'max:10000', 'required_with:giphy_id'],
+            'gif_provider' => ['nullable', 'string', Rule::enum(GifProvider::class), 'required_with:gif_id'],
+            'gif_id' => ['nullable', 'string', 'max:64', 'regex:/^[A-Za-z0-9-]+$/', 'prohibits:images,poll', 'required_with:gif_url'],
+            'gif_url' => ['nullable', 'string', 'max:2048', 'required_with:gif_id', new GifMediaUrl($provider)],
+            'gif_page_url' => ['nullable', 'string', 'max:2048', 'required_with:gif_id', new GifPageUrl($provider)],
+            'gif_title' => ['nullable', 'string', 'max:300'],
+            'gif_username' => ['nullable', 'string', 'max:100'],
+            'gif_width' => ['nullable', 'integer', 'min:1', 'max:10000', 'required_with:gif_id'],
+            'gif_height' => ['nullable', 'integer', 'min:1', 'max:10000', 'required_with:gif_id'],
         ];
     }
 
@@ -88,12 +91,13 @@ final class CreateCommitRequest extends FormRequest
         $user = $this->user();
         assert($user instanceof User);
         $body = $this->input('body');
+        $provider = GifProvider::tryFrom($this->string('gif_provider')->value()) ?? GifProvider::Giphy;
 
         return [
             'body' => $this->hasFile('images') ? self::BODY_WITH_IMAGES_RULES : self::BODY_RULES,
             'quoted_commit_id' => ['nullable', 'uuid', 'prohibits:parent_id', new VisibleCommit($user, 'That commit is no longer available to quote.')],
             'link_preview_url' => ['nullable', 'string', Rule::in(is_string($body) ? resolve(Urls::class)->all($body) : [])],
-            ...self::attachmentRules(),
+            ...self::attachmentRules($provider),
         ];
     }
 
@@ -172,20 +176,21 @@ final class CreateCommitRequest extends FormRequest
             : null;
     }
 
-    public function giphy(): ?Giphy
+    public function gif(): ?Gif
     {
-        if (! $this->filled('giphy_id')) {
+        if (! $this->filled('gif_id')) {
             return null;
         }
 
-        return new Giphy(
-            $this->string('giphy_id')->value(),
-            $this->string('giphy_url')->value(),
-            $this->string('giphy_page_url')->value(),
-            $this->filled('giphy_title') ? $this->string('giphy_title')->value() : null,
-            $this->filled('giphy_username') ? $this->string('giphy_username')->value() : null,
-            $this->integer('giphy_width'),
-            $this->integer('giphy_height'),
+        return new Gif(
+            GifProvider::from($this->string('gif_provider')->value()),
+            $this->string('gif_id')->value(),
+            $this->string('gif_url')->value(),
+            $this->string('gif_page_url')->value(),
+            $this->filled('gif_title') ? $this->string('gif_title')->value() : null,
+            $this->filled('gif_username') ? $this->string('gif_username')->value() : null,
+            $this->integer('gif_width'),
+            $this->integer('gif_height'),
         );
     }
 
