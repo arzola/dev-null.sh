@@ -242,23 +242,33 @@ it('knows who it blocks and who blocks it', function (): void {
         ->and($other->blockers->modelKeys())->toBe([$user->id]);
 });
 
-it('stores the giphy key encrypted and reads it back', function (): void {
-    $user = User::factory()->withGiphyKey('giphy-test-key')->create();
+it('stores the gif key encrypted and reads it back', function (): void {
+    $user = User::factory()->withGifKey(key: 'gif-test-key')->create();
 
-    expect($user->refresh()->giphy_key)->toBe('giphy-test-key')
-        ->and(DB::table('users')->where('id', $user->id)->value('giphy_key'))
+    expect($user->refresh()->gif_key)->toBe('gif-test-key')
+        ->and(DB::table('users')->where('id', $user->id)->value('gif_key'))
         ->toBeString()
-        ->not->toBe('giphy-test-key')
-        ->not->toContain('giphy-test-key');
+        ->not->toBe('gif-test-key')
+        ->not->toContain('gif-test-key');
 });
 
-it('defaults the giphy key to null', function (): void {
-    expect(User::factory()->create()->refresh()->giphy_key)->toBeNull();
+it('defaults the gif key to null', function (): void {
+    expect(User::factory()->create()->refresh()->gif_key)->toBeNull();
 });
 
-it('serializes no giphy key', function (): void {
-    $user = User::factory()->withGiphyKey()->create();
+it('defaults the gif provider to null', function (): void {
+    $user = User::factory()->create()->refresh();
 
-    expect($user->toArray())->not->toHaveKey('giphy_key')
-        ->and($user->jsonSerialize())->not->toHaveKey('giphy_key');
+    expect($user->gif_key)->toBeNull()
+        ->and($user->gif_provider)->toBeNull()
+        ->and(DB::table('users')->where('id', $user->id)->value('gif_provider'))->toBeNull();
+});
+
+it('serializes no gif key or provider', function (): void {
+    $user = User::factory()->withGifKey()->create();
+
+    expect($user->toArray())->not->toHaveKey('gif_key')
+        ->not->toHaveKey('gif_provider')
+        ->and($user->jsonSerialize())->not->toHaveKey('gif_key')
+        ->not->toHaveKey('gif_provider');
 });

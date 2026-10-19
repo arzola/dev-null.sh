@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Database\Factories;
 
 use App\Enums\CommitStatus;
+use App\Enums\GifProvider;
 use App\Models\Commit;
 use App\Models\User;
 use App\Services\TheAlgorithm;
@@ -58,16 +59,32 @@ final class CommitFactory extends Factory
         ]);
     }
 
-    public function withGiphy(): self
+    public function withGif(GifProvider $provider = GifProvider::Giphy): self
     {
+        $gif = match ($provider) {
+            GifProvider::Giphy => [
+                'gif_id' => 'xT9IgzoKnwFNmISR8I',
+                'gif_url' => 'https://media2.giphy.com/media/xT9IgzoKnwFNmISR8I/giphy-downsized-medium.gif?cid=abc123',
+                'gif_page_url' => 'https://giphy.com/gifs/deal-with-it-xT9IgzoKnwFNmISR8I',
+                'gif_title' => 'Deal With It GIF',
+                'gif_username' => 'giphy',
+                'gif_width' => 480,
+                'gif_height' => 270,
+            ],
+            GifProvider::Klipy => [
+                'gif_id' => 'hello-hi-662',
+                'gif_url' => 'https://static.klipy.com/ii/935d7ab9/kLipy.gif',
+                'gif_page_url' => 'https://klipy.com/gifs/hello-hi-662',
+                'gif_title' => 'Hello',
+                'gif_username' => null,
+                'gif_width' => 498,
+                'gif_height' => 498,
+            ],
+        };
+
         return $this->state(fn (array $attributes): array => [
-            'giphy_id' => 'xT9IgzoKnwFNmISR8I',
-            'giphy_url' => 'https://media2.giphy.com/media/xT9IgzoKnwFNmISR8I/giphy-downsized-medium.gif?cid=abc123',
-            'giphy_page_url' => 'https://giphy.com/gifs/deal-with-it-xT9IgzoKnwFNmISR8I',
-            'giphy_title' => 'Deal With It GIF',
-            'giphy_username' => 'giphy',
-            'giphy_width' => 480,
-            'giphy_height' => 270,
+            'gif_provider' => $provider->value,
+            ...$gif,
         ]);
     }
 }

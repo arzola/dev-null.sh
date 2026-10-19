@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Enums\CommitStatus;
+use App\Enums\GifProvider;
 use App\Queries\CommitBuilder;
 use App\Services\CommitBodies;
 use Carbon\CarbonInterface;
@@ -36,13 +37,14 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property-read CommitStatus|null $ai_decision
  * @property-read list<string>|null $ai_categories
  * @property-read list<float>|null $embedding
- * @property-read string|null $giphy_id
- * @property-read string|null $giphy_url
- * @property-read string|null $giphy_page_url
- * @property-read string|null $giphy_title
- * @property-read string|null $giphy_username
- * @property-read int|null $giphy_width
- * @property-read int|null $giphy_height
+ * @property-read GifProvider|null $gif_provider
+ * @property-read string|null $gif_id
+ * @property-read string|null $gif_url
+ * @property-read string|null $gif_page_url
+ * @property-read string|null $gif_title
+ * @property-read string|null $gif_username
+ * @property-read int|null $gif_width
+ * @property-read int|null $gif_height
  * @property-read CarbonInterface $created_at
  * @property-read CarbonInterface $updated_at
  * @property-read CarbonInterface|null $deleted_at
@@ -67,13 +69,14 @@ use Illuminate\Database\Eloquent\SoftDeletes;
     'ai_decision',
     'ai_categories',
     'embedding',
-    'giphy_id',
-    'giphy_url',
-    'giphy_page_url',
-    'giphy_title',
-    'giphy_username',
-    'giphy_width',
-    'giphy_height',
+    'gif_provider',
+    'gif_id',
+    'gif_url',
+    'gif_page_url',
+    'gif_title',
+    'gif_username',
+    'gif_width',
+    'gif_height',
 ])]
 #[UseEloquentBuilder(CommitBuilder::class)]
 final class Commit extends Model
@@ -130,13 +133,14 @@ final class Commit extends Model
             'ai_decision' => CommitStatus::class,
             'ai_categories' => 'array',
             'embedding' => AsVector::class,
-            'giphy_id' => 'string',
-            'giphy_url' => 'string',
-            'giphy_page_url' => 'string',
-            'giphy_title' => 'string',
-            'giphy_username' => 'string',
-            'giphy_width' => 'integer',
-            'giphy_height' => 'integer',
+            'gif_provider' => GifProvider::class,
+            'gif_id' => 'string',
+            'gif_url' => 'string',
+            'gif_page_url' => 'string',
+            'gif_title' => 'string',
+            'gif_username' => 'string',
+            'gif_width' => 'integer',
+            'gif_height' => 'integer',
             'created_at' => 'datetime',
             'updated_at' => 'datetime',
             'deleted_at' => 'datetime',
@@ -296,24 +300,25 @@ final class Commit extends Model
     }
 
     /**
-     * The attached GIPHY GIF, hotlinked by its media URL exactly as GIPHY's API returned it.
+     * The attached GIF, hotlinked by its media URL exactly as the provider returned it.
      *
-     * @return array{id: string, url: string, page_url: string, title: string|null, username: string|null, width: int|null, height: int|null}|null
+     * @return array{provider: string, id: string, url: string, page_url: string, title: string|null, username: string|null, width: int|null, height: int|null}|null
      */
     public function gif(): ?array
     {
-        if ($this->giphy_id === null || $this->giphy_url === null || $this->giphy_page_url === null) {
+        if ($this->gif_id === null || $this->gif_url === null || $this->gif_page_url === null || $this->gif_provider === null) {
             return null;
         }
 
         return [
-            'id' => $this->giphy_id,
-            'url' => $this->giphy_url,
-            'page_url' => $this->giphy_page_url,
-            'title' => $this->giphy_title,
-            'username' => $this->giphy_username,
-            'width' => $this->giphy_width,
-            'height' => $this->giphy_height,
+            'provider' => $this->gif_provider->value,
+            'id' => $this->gif_id,
+            'url' => $this->gif_url,
+            'page_url' => $this->gif_page_url,
+            'title' => $this->gif_title,
+            'username' => $this->gif_username,
+            'width' => $this->gif_width,
+            'height' => $this->gif_height,
         ];
     }
 

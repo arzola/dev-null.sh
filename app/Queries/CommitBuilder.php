@@ -28,7 +28,7 @@ final class CommitBuilder extends Builder
     private const array COLUMNS_BUT_EMBEDDING = [
         'id', 'user_id', 'body', 'created_at', 'updated_at', 'status', 'parent_id', 'deleted_at', 'link_preview_id',
         'quoted_commit_id', 'mentions', 'ai_decision', 'ai_categories', 'root_id', 'hot_score', 'pasteis_count',
-        'giphy_id', 'giphy_url', 'giphy_page_url', 'giphy_title', 'giphy_username', 'giphy_width', 'giphy_height',
+        'gif_provider', 'gif_id', 'gif_url', 'gif_page_url', 'gif_title', 'gif_username', 'gif_width', 'gif_height',
     ];
 
     /**

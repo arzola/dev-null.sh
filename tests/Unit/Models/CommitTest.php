@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Actions\DeleteUser;
 use App\Enums\CommitStatus;
+use App\Enums\GifProvider;
 use App\Models\Commit;
 use App\Models\CommitImage;
 use App\Models\LinkPreview;
@@ -439,11 +440,12 @@ it('never shows the images of a deleted commit in its tombstone', function (): v
 });
 
 it('serializes an attached gif as one object and hides the raw columns', function (): void {
-    $commit = Commit::factory()->withGiphy()->create();
+    $commit = Commit::factory()->withGif()->create();
 
     $payload = $commit->toArray();
 
     expect($payload['gif'])->toBe([
+        'provider' => 'giphy',
         'id' => 'xT9IgzoKnwFNmISR8I',
         'url' => 'https://media2.giphy.com/media/xT9IgzoKnwFNmISR8I/giphy-downsized-medium.gif?cid=abc123',
         'page_url' => 'https://giphy.com/gifs/deal-with-it-xT9IgzoKnwFNmISR8I',
@@ -451,7 +453,19 @@ it('serializes an attached gif as one object and hides the raw columns', functio
         'username' => 'giphy',
         'width' => 480,
         'height' => 270,
-    ])->and(array_keys($payload))->each->not->toStartWith('giphy_');
+    ])->and(array_keys($payload))->each->not->toStartWith('gif_');
+});
+
+it('serializes the klipy provider too', function (): void {
+    $commit = Commit::factory()->withGif(GifProvider::Klipy)->create();
+
+    expect($commit->toArray()['gif'])->toMatchArray([
+        'provider' => 'klipy',
+        'id' => 'hello-hi-662',
+        'url' => 'https://static.klipy.com/ii/935d7ab9/kLipy.gif',
+        'page_url' => 'https://klipy.com/gifs/hello-hi-662',
+        'username' => null,
+    ]);
 });
 
 it('serializes the gif of a plain commit as null', function (): void {
@@ -459,7 +473,7 @@ it('serializes the gif of a plain commit as null', function (): void {
 });
 
 it('leaves the gif out of a tombstone', function (): void {
-    $commit = Commit::factory()->withGiphy()->create();
+    $commit = Commit::factory()->withGif()->create();
     $commit->delete();
 
     expect($commit->fresh()?->toArray())->not->toHaveKey('gif');
