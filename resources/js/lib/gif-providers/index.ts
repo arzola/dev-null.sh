@@ -10,8 +10,8 @@ import type {
 export * from './types.ts';
 
 export const gifProviders: Record<GifProviderId, GifProvider> = {
-    giphy,
     klipy,
+    giphy,
 };
 
 export function gifProviderFor(id: GifProviderId): GifProvider {

@@ -111,7 +111,7 @@ function typeKey(fields: Element[], value: string): Element[] {
     return render();
 }
 
-function selectProvider(fields: Element[], id: 'klipy'): Element[] {
+function selectProvider(fields: Element[], id: 'giphy' | 'klipy'): Element[] {
     (field(fields, `provider-${id}`).props.onClick as () => void)();
 
     return render();
@@ -156,10 +156,21 @@ test('shows the browser-only notice', () => {
     );
 });
 
+test('lists klipy first', () => {
+    const labels = render()
+        .filter((element) =>
+            String(element.props['data-test']).startsWith('provider-'),
+        )
+        .map((element) => element.props.children);
+
+    assert.deepEqual(labels, ['KLIPY', 'GIPHY']);
+});
+
 test('saves a valid key to local storage after giphy accepts it', async () => {
     stubFetch(200);
 
-    let fields = typeKey(render(), '  key-123  ');
+    let fields = selectProvider(render(), 'giphy');
+    fields = typeKey(fields, '  key-123  ');
     await (field(fields, 'gif-connect-button').props.onClick as () => Promise<void>)();
 
     assert.deepEqual(store.get('gif-provider:user-1'), JSON.stringify({ provider: 'giphy', key: 'key-123' }));
@@ -176,11 +187,10 @@ test('saves a valid key to local storage after giphy accepts it', async () => {
     );
 });
 
-test('saves the key against the selected provider', async () => {
+test('defaults to klipy when no provider is stored', async () => {
     stubFetch(200);
 
-    let fields = selectProvider(render(), 'klipy');
-    fields = typeKey(fields, 'key-123');
+    const fields = typeKey(render(), 'key-123');
     await (field(fields, 'gif-connect-button').props.onClick as () => Promise<void>)();
 
     assert.deepEqual(readGifProviderKey('user-1'), { provider: 'klipy', key: 'key-123' });
@@ -192,13 +202,14 @@ test('saves a rate-limited key because the key itself is real', async () => {
     const fields = typeKey(render(), 'key-123');
     await (field(fields, 'gif-connect-button').props.onClick as () => Promise<void>)();
 
-    assert.deepEqual(readGifProviderKey('user-1'), { provider: 'giphy', key: 'key-123' });
+    assert.deepEqual(readGifProviderKey('user-1'), { provider: 'klipy', key: 'key-123' });
 });
 
 test('rejects a refused key without saving', async () => {
     stubFetch(401);
 
-    const fields = typeKey(render(), 'key-123');
+    let fields = selectProvider(render(), 'giphy');
+    fields = typeKey(fields, 'key-123');
     await (field(fields, 'gif-connect-button').props.onClick as () => Promise<void>)();
 
     assert.equal(readGifProviderKey('user-1'), null);
@@ -211,8 +222,7 @@ test('rejects a refused key without saving', async () => {
 test('names klipy when it refuses the key', async () => {
     stubFetch(401);
 
-    let fields = selectProvider(render(), 'klipy');
-    fields = typeKey(fields, 'key-123');
+    const fields = typeKey(render(), 'key-123');
     await (field(fields, 'gif-connect-button').props.onClick as () => Promise<void>)();
 
     assert.equal(readGifProviderKey('user-1'), null);
@@ -230,7 +240,7 @@ test('clears the error when another provider is selected', async () => {
 
     assert.ok(field(render(), 'gif-key-error'));
 
-    (field(render(), 'provider-klipy').props.onClick as () => void)();
+    (field(render(), 'provider-giphy').props.onClick as () => void)();
 
     assert.equal(
         render().some(
@@ -243,7 +253,8 @@ test('clears the error when another provider is selected', async () => {
 test('does not save when the provider cannot be reached', async () => {
     stubFetch('network');
 
-    const fields = typeKey(render(), 'key-123');
+    let fields = selectProvider(render(), 'giphy');
+    fields = typeKey(fields, 'key-123');
     await (field(fields, 'gif-connect-button').props.onClick as () => Promise<void>)();
 
     assert.equal(readGifProviderKey('user-1'), null);
@@ -334,11 +345,11 @@ test('describes the stored provider instead of the default one', () => {
 
     assert.ok(
         fields.some(
-            (element) => element.props.href === 'https://developers.giphy.com',
+            (element) => element.props.href === 'https://partner.klipy.com',
         ),
     );
 
-    writeGifProviderKey('user-1', { provider: 'klipy', key: 'k' });
+    writeGifProviderKey('user-1', { provider: 'giphy', key: 'k' });
 
     fields = render();
 
@@ -351,11 +362,11 @@ test('describes the stored provider instead of the default one', () => {
         React.Children.toArray(description.props.children as ReactNode)
             .map((child) => (typeof child === 'string' ? child : ''))
             .join('')
-            .includes('KLIPY'),
+            .includes('GIPHY'),
     );
     assert.ok(
         fields.some(
-            (element) => element.props.href === 'https://partner.klipy.com',
+            (element) => element.props.href === 'https://developers.giphy.com',
         ),
     );
 });

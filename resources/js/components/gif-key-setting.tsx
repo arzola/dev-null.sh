@@ -20,7 +20,7 @@ export function GifKeySetting() {
     const { user } = useUser();
     const entry = useGifProviderKey(user.id);
     const [providerId, setProviderId] = useState<GifProviderId>(
-        entry?.provider ?? 'giphy',
+        entry?.provider ?? 'klipy',
     );
     const [key, setKey] = useState('');
     const [editing, setEditing] = useState(false);
@@ -128,8 +128,8 @@ export function GifKeySetting() {
                 >
                     {provider.label}
                 </a>
-                , save it here, and every composer gains a GIF picker. One
-                provider at a time; without a key the picker stays hidden.
+                , save it here, and every composer gains a GIF picker. Without a
+                key the picker stays hidden.
             </p>
             <p
                 className="mt-2 text-sm text-muted-foreground"
