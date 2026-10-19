@@ -6,7 +6,7 @@ import CommitController from '@/actions/App/Http/Controllers/CommitController';
 import ScheduledCommitController from '@/actions/App/Http/Controllers/ScheduledCommitController';
 import { ActionTooltip } from '@/components/action-tooltip';
 import { BodyCounter } from '@/components/body-counter';
-import { CommitGiphy } from '@/components/commit-giphy';
+import { CommitGif } from '@/components/commit-gif';
 import {
     ImageDropOverlay,
     ImagePickerButton,
@@ -19,8 +19,8 @@ import {
     PreviewToggle,
     useComposerPreview,
 } from '@/components/composer-preview';
-import { GiphyAttachmentPreview } from '@/components/giphy-attachment-preview';
-import { GiphyPickerButton } from '@/components/giphy-picker-button';
+import { GifAttachmentPreview } from '@/components/gif-attachment-preview';
+import { GifPickerButton } from '@/components/gif-picker-button';
 import { GraphRail, RailAvatar } from '@/components/graph-rail';
 import InputError from '@/components/input-error';
 import type { UseIssueCommandReturn } from '@/components/issue-command';
@@ -53,8 +53,8 @@ import {
 } from '@/hooks/use-stash';
 import { useUser } from '@/hooks/use-user';
 import { maxBodyLength, minBodyLength } from '@/lib/commit';
-import { giphyFormFields } from '@/lib/giphy';
-import type { GiphyAttachment } from '@/lib/giphy';
+import { gifFormFields } from '@/lib/gif-providers';
+import type { GifAttachment } from '@/lib/gif-providers';
 import { hasModKey, useKeyLabels } from '@/lib/keyboard';
 import {
     characterCount,
@@ -141,7 +141,7 @@ function CommitComposerBody({
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const textBox = useRef<HTMLDivElement>(null);
     const preview = useComposerPreview({ body, textareaRef, isSubmittable });
-    const pickGif = (gif: GiphyAttachment) => {
+    const pickGif = (gif: GifAttachment) => {
         attachments.clear();
         setPoll(null);
         stash.updateGif(gif);
@@ -267,7 +267,9 @@ function CommitComposerBody({
                     </div>
 
                     {preview.isPreviewing && stash.gif !== null && (
-                        <CommitGiphy gif={stash.gif} />
+                        <CommitGif
+                            gif={{ ...stash.gif, page_url: stash.gif.pageUrl }}
+                        />
                     )}
 
                     {issue.hint && (
@@ -313,7 +315,7 @@ function CommitComposerBody({
                         />
                     )}
                     {!preview.isPreviewing && (
-                        <GiphyAttachmentPreview
+                        <GifAttachmentPreview
                             gif={stash.gif}
                             onRemove={() => stash.updateGif(null)}
                         />
@@ -412,7 +414,7 @@ function CommitComposerBody({
                                         className="-ml-2"
                                     />
                                     {!isScheduling && (
-                                        <GiphyPickerButton
+                                        <GifPickerButton
                                             disabled={
                                                 processing || poll !== null
                                             }
@@ -678,7 +680,7 @@ export function CommitComposer({
                     image_descriptions: attachments.descriptions,
                 }),
                 ...(stash.gif !== null &&
-                    !isScheduling && { ...giphyFormFields(stash.gif) }),
+                    !isScheduling && { ...gifFormFields(stash.gif) }),
                 ...(isScheduling && {
                     scheduled_at: new Date(scheduledAt)
                         .toISOString()

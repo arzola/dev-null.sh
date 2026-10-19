@@ -48,6 +48,7 @@ export type CommitImage = {
 };
 
 export type CommitGif = {
+    provider: 'giphy' | 'klipy';
     id: string;
     url: string;
     page_url: string;

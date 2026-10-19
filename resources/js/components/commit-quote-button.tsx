@@ -11,8 +11,8 @@ import {
     ImagePickerPreviews,
     imageErrorFrom,
 } from '@/components/commit-image-picker';
-import { GiphyAttachmentPreview } from '@/components/giphy-attachment-preview';
-import { GiphyPickerButton } from '@/components/giphy-picker-button';
+import { GifAttachmentPreview } from '@/components/gif-attachment-preview';
+import { GifPickerButton } from '@/components/gif-picker-button';
 import InputError from '@/components/input-error';
 import { MentionTextarea } from '@/components/mention-textarea';
 import { QuotedCommit } from '@/components/quoted-commit';
@@ -33,7 +33,7 @@ import { moveCaretToEnd, useHasStash, useStash } from '@/hooks/use-stash';
 import { useUser } from '@/hooks/use-user';
 import { signIn } from '@/lib/auth';
 import { maxBodyLength, minBodyLength } from '@/lib/commit';
-import { giphyFormFields } from '@/lib/giphy';
+import { gifFormFields } from '@/lib/gif-providers';
 import { hasModKey, useKeyLabels } from '@/lib/keyboard';
 import { characterCount, cn, isRejectedSubmission } from '@/lib/utils';
 import type { Commit } from '@/types';
@@ -192,7 +192,7 @@ function QuoteComposer({
                 }
                 transform={(data) =>
                     gif !== null
-                        ? { ...data, ...giphyFormFields(gif) }
+                        ? { ...data, ...gifFormFields(gif) }
                         : images.length > 0
                           ? {
                                 ...data,
@@ -278,7 +278,7 @@ function QuoteComposer({
                                 onDescribe={attachments.describe}
                                 onRemove={attachments.remove}
                             />
-                            <GiphyAttachmentPreview
+                            <GifAttachmentPreview
                                 gif={gif}
                                 onRemove={() => updateGif(null)}
                             />
@@ -303,7 +303,7 @@ function QuoteComposer({
                                         }}
                                         className="size-8"
                                     />
-                                    <GiphyPickerButton
+                                    <GifPickerButton
                                         disabled={processing}
                                         hasGif={gif !== null}
                                         onPick={(picked) => {

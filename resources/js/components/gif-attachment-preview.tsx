@@ -1,11 +1,11 @@
 import { X } from 'lucide-react';
-import type { GiphyAttachment } from '@/lib/giphy';
+import type { GifAttachment } from '@/lib/gif-providers';
 
-export function GiphyAttachmentPreview({
+export function GifAttachmentPreview({
     gif,
     onRemove,
 }: {
-    gif: GiphyAttachment | null;
+    gif: GifAttachment | null;
     onRemove: () => void;
 }) {
     if (gif === null) {
@@ -16,7 +16,7 @@ export function GiphyAttachmentPreview({
         <div className="mt-2">
             <div
                 className="relative inline-block"
-                data-test="giphy-attachment-preview"
+                data-test="gif-attachment-preview"
             >
                 <img
                     src={gif.url}

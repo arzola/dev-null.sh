@@ -5,7 +5,7 @@ import { useRef, useState } from 'react';
 import CommitController from '@/actions/App/Http/Controllers/CommitController';
 import CommitLinkPreviewController from '@/actions/App/Http/Controllers/CommitLinkPreviewController';
 import { FoldedCommitBody } from '@/components/commit-body';
-import { CommitGiphy } from '@/components/commit-giphy';
+import { CommitGif } from '@/components/commit-gif';
 import { CommitImages } from '@/components/commit-images';
 import { CommitPastelButton } from '@/components/commit-pastel-button';
 import { CommitPoll } from '@/components/commit-poll';
@@ -367,7 +367,7 @@ export function CommitCard({
                             {translation.notice}
                             {showImages && <CommitImages commit={commit} />}
                             {showImages && commit.gif && (
-                                <CommitGiphy gif={commit.gif} />
+                                <CommitGif gif={commit.gif} />
                             )}
                             {commit.poll && (
                                 <CommitPoll

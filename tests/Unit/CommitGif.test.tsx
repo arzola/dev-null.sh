@@ -2,10 +2,11 @@
 import assert from 'node:assert/strict';
 import type { ReactElement, SyntheticEvent } from 'react';
 import { test } from 'vite-plus/test';
-import { CommitGiphy } from '../../resources/js/components/commit-giphy';
-import type { CommitGif } from '../../resources/js/types/commit';
+import { CommitGif } from '../../resources/js/components/commit-gif';
+import type { CommitGif as CommitGifData } from '../../resources/js/types/commit';
 
-const gif: CommitGif = {
+const gif: CommitGifData = {
+    provider: 'giphy',
     id: 'xT9IgzoKnwFNmISR8I',
     url: 'https://media2.giphy.com/media/xT9IgzoKnwFNmISR8I/giphy-downsized-medium.gif?cid=abc123',
     page_url: 'https://giphy.com/gifs/deal-with-it-xT9IgzoKnwFNmISR8I',
@@ -15,8 +16,8 @@ const gif: CommitGif = {
     height: 270,
 };
 
-function renderedGiphy(overrides: Partial<CommitGif> = {}) {
-    const figure = CommitGiphy({ gif: { ...gif, ...overrides } });
+function renderedGif(overrides: Partial<CommitGifData> = {}) {
+    const figure = CommitGif({ gif: { ...gif, ...overrides } });
     const [image, attribution] = figure.props.children as [
         ReactElement<{
             src: string;
@@ -32,7 +33,7 @@ function renderedGiphy(overrides: Partial<CommitGif> = {}) {
 }
 
 test('hotlinks the giphy url verbatim with its query string intact', () => {
-    const { image } = renderedGiphy();
+    const { image } = renderedGif();
 
     assert.equal(
         image.props.src,
@@ -44,13 +45,13 @@ test('hotlinks the giphy url verbatim with its query string intact', () => {
 });
 
 test('falls back to a generic alt when giphy has no title', () => {
-    const { image } = renderedGiphy({ title: null });
+    const { image } = renderedGif({ title: null });
 
     assert.equal(image.props.alt, 'Attached GIF');
 });
 
 test('credits the giphy uploader with a link to the gif page', () => {
-    const { attribution } = renderedGiphy();
+    const { attribution } = renderedGif();
 
     assert.equal(attribution.props.href, gif.page_url);
     assert.equal(attribution.props.target, '_blank');
@@ -59,9 +60,15 @@ test('credits the giphy uploader with a link to the gif page', () => {
 });
 
 test('falls back to the plain giphy credit when the uploader is unknown', () => {
-    const { attribution } = renderedGiphy({ username: null });
+    const { attribution } = renderedGif({ username: null });
 
     assert.equal(attribution.props.children, 'via GIPHY');
+});
+
+test('credits klipy without a giphy-style username', () => {
+    const { attribution } = renderedGif({ provider: 'klipy', username: null });
+
+    assert.equal(attribution.props.children, 'via KLIPY');
 });
 
 test('replaces a failed gif with the site logo without retrying the fallback', () => {
@@ -83,7 +90,7 @@ test('replaces a failed gif with the site logo without retrying the fallback', (
     const event = {
         currentTarget: target,
     } as unknown as SyntheticEvent<HTMLImageElement>;
-    const { onError } = renderedGiphy().image.props;
+    const { onError } = renderedGif().image.props;
 
     onError(event);
     assert.equal(source, '/favicon.svg');

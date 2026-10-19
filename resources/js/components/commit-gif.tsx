@@ -1,21 +1,28 @@
+import { gifProviders } from '@/lib/gif-providers';
 import { cn } from '@/lib/utils';
 import type { CommitGif } from '@/types/commit';
 
-/** An attached GIPHY GIF, hotlinked verbatim with its required attribution. */
-export function CommitGiphy({
+/** An attached GIF, hotlinked verbatim with its required attribution. */
+export function CommitGif({
     gif,
     className,
 }: {
     gif: CommitGif;
     className?: string;
 }) {
+    const provider = gifProviders[gif.provider];
+    const credit =
+        gif.username !== null
+            ? `GIF by @${gif.username} on ${provider.label}`
+            : `via ${provider.label}`;
+
     return (
         <figure
             className={cn(
                 'relative mt-3 overflow-hidden rounded-lg border',
                 className,
             )}
-            data-test="commit-giphy"
+            data-test="commit-gif"
         >
             <img
                 src={gif.url}
@@ -43,9 +50,7 @@ export function CommitGiphy({
                 onClick={(event) => event.stopPropagation()}
                 className="absolute right-1.5 bottom-1.5 rounded bg-background/80 px-1.5 py-0.5 text-[11px] font-medium text-foreground backdrop-blur transition hover:bg-background"
             >
-                {gif.username
-                    ? `GIF by @${gif.username} on GIPHY`
-                    : 'via GIPHY'}
+                {credit}
             </a>
         </figure>
     );

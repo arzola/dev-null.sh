@@ -1,15 +1,14 @@
 import { usePage } from '@inertiajs/react';
 import { ImagePlay } from 'lucide-react';
 import { useState } from 'react';
-import { GiphyPickerDialog } from '@/components/giphy-picker-dialog';
+import { GifPickerDialog } from '@/components/gif-picker-dialog';
 import { Button } from '@/components/ui/button';
-import type { GiphyAttachment } from '@/lib/giphy';
+import { gifProviderFor } from '@/lib/gif-providers';
+import type { GifAttachment } from '@/lib/gif-providers';
 import { cn } from '@/lib/utils';
 
-/**
- * Invisible until the signed-in user connects their own GIPHY key in settings.
- */
-export function GiphyPickerButton({
+/** Invisible until the signed-in user connects a GIF provider in settings. */
+export function GifPickerButton({
     disabled,
     hasGif,
     onPick,
@@ -17,13 +16,13 @@ export function GiphyPickerButton({
 }: {
     disabled?: boolean;
     hasGif: boolean;
-    onPick: (gif: GiphyAttachment) => void;
+    onPick: (gif: GifAttachment) => void;
     className?: string;
 }) {
-    const { giphy } = usePage().props;
+    const { gif } = usePage().props;
     const [open, setOpen] = useState(false);
 
-    if (giphy === null) {
+    if (gif === null) {
         return null;
     }
 
@@ -42,8 +41,9 @@ export function GiphyPickerButton({
             >
                 <ImagePlay className="size-5" />
             </Button>
-            <GiphyPickerDialog
-                apiKey={giphy.key}
+            <GifPickerDialog
+                provider={gifProviderFor(gif.provider)}
+                apiKey={gif.key}
                 open={open}
                 onOpenChange={setOpen}
                 onPick={onPick}

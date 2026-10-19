@@ -15,7 +15,7 @@ import CommitReplyController from '@/actions/App/Http/Controllers/CommitReplyCon
 import { ActionTooltip } from '@/components/action-tooltip';
 import { BodyCounter } from '@/components/body-counter';
 import { FoldedCommitBody } from '@/components/commit-body';
-import { CommitGiphy } from '@/components/commit-giphy';
+import { CommitGif } from '@/components/commit-gif';
 import {
     ImageDropOverlay,
     ImagePickerButton,
@@ -33,8 +33,8 @@ import {
     PreviewToggle,
     useComposerPreview,
 } from '@/components/composer-preview';
-import { GiphyAttachmentPreview } from '@/components/giphy-attachment-preview';
-import { GiphyPickerButton } from '@/components/giphy-picker-button';
+import { GifAttachmentPreview } from '@/components/gif-attachment-preview';
+import { GifPickerButton } from '@/components/gif-picker-button';
 import { RailDot } from '@/components/graph-rail';
 import InputError from '@/components/input-error';
 import { LinkCardPicker } from '@/components/link-card-picker';
@@ -66,7 +66,7 @@ import { useUser } from '@/hooks/use-user';
 import { signIn } from '@/lib/auth';
 import { maxBodyLength, minBodyLength } from '@/lib/commit';
 import { commitStateKey } from '@/lib/commit-state';
-import { giphyFormFields } from '@/lib/giphy';
+import { gifFormFields } from '@/lib/gif-providers';
 import { hasModKey } from '@/lib/keyboard';
 import {
     characterCount,
@@ -1145,13 +1145,14 @@ function ReplyComposer({
             images: File[];
             image_descriptions: string[];
             link_preview_url?: string;
-            giphy_id?: string;
-            giphy_url?: string;
-            giphy_page_url?: string;
-            giphy_title?: string;
-            giphy_username?: string;
-            giphy_width?: number;
-            giphy_height?: number;
+            gif_provider?: 'giphy' | 'klipy';
+            gif_id?: string;
+            gif_url?: string;
+            gif_page_url?: string;
+            gif_title?: string;
+            gif_username?: string;
+            gif_width?: number;
+            gif_height?: number;
         },
         CreatedReply
     >({
@@ -1223,7 +1224,7 @@ function ReplyComposer({
             body,
             images: gif === null ? images : [],
             image_descriptions: gif === null ? descriptions : [],
-            ...(gif !== null ? giphyFormFields(gif) : {}),
+            ...(gif !== null ? gifFormFields(gif) : {}),
             ...(linkCard.isChosen
                 ? { link_preview_url: linkCard.link ?? '' }
                 : {}),
@@ -1297,7 +1298,9 @@ function ReplyComposer({
                     />
                 )}
             </div>
-            {preview.isPreviewing && gif !== null && <CommitGiphy gif={gif} />}
+            {preview.isPreviewing && gif !== null && (
+                <CommitGif gif={{ ...gif, page_url: gif.pageUrl }} />
+            )}
             <InputError
                 message={errors.body ?? errors.link_preview_url}
                 className="px-1"
@@ -1311,7 +1314,7 @@ function ReplyComposer({
                 />
             )}
             {!preview.isPreviewing && (
-                <GiphyAttachmentPreview
+                <GifAttachmentPreview
                     gif={gif}
                     onRemove={() => updateGif(null)}
                 />
@@ -1342,7 +1345,7 @@ function ReplyComposer({
                         }}
                         className="size-8"
                     />
-                    <GiphyPickerButton
+                    <GifPickerButton
                         disabled={processing}
                         hasGif={gif !== null}
                         onPick={(picked) => {

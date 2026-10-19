@@ -7,41 +7,35 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
-import type { GiphyResult } from '@/lib/giphy';
-import {
-    attachmentFromResult,
-    fetchGifs,
-    giphySearchUrl,
-    giphyTrendingUrl,
-    GiphyRateLimited,
-    pageSize,
-    previewUrlFor,
-} from '@/lib/giphy';
-import type { GiphyAttachment } from '@/lib/giphy';
+import { attachmentFromResult } from '@/lib/gif-providers';
+import type {
+    GifAttachment,
+    GifProvider,
+    GifResult,
+} from '@/lib/gif-providers';
+import { GifRateLimited } from '@/lib/gif-providers';
 
 type Status = 'loading' | 'ready' | 'error' | 'rate-limited';
 
-export function GiphyPickerDialog({
+export function GifPickerDialog({
+    provider,
     apiKey,
     open,
     onOpenChange,
     onPick,
 }: {
+    provider: GifProvider;
     apiKey: string;
     open: boolean;
     onOpenChange: (open: boolean) => void;
-    onPick: (gif: GiphyAttachment) => void;
+    onPick: (gif: GifAttachment) => void;
 }) {
     const [query, setQuery] = useState('');
-    const [results, setResults] = useState<GiphyResult[]>([]);
+    const [results, setResults] = useState<GifResult[]>([]);
+    const [nextCursor, setNextCursor] = useState<string | null>(null);
     const [status, setStatus] = useState<Status>('loading');
     const [isLoadingMore, setIsLoadingMore] = useState(false);
     const [reloads, setReloads] = useState(0);
-
-    const urlFor = (offset: number) =>
-        query.trim() === ''
-            ? giphyTrendingUrl(apiKey, offset)
-            : giphySearchUrl(apiKey, query.trim(), offset);
 
     useEffect(() => {
         if (!open) {
@@ -52,9 +46,22 @@ export function GiphyPickerDialog({
         const timeout = setTimeout(
             () => {
                 setStatus('loading');
-                fetchGifs(urlFor(0), controller.signal)
-                    .then((gifs) => {
-                        setResults(gifs);
+                const trimmed = query.trim();
+                const request =
+                    trimmed === ''
+                        ? provider.trending(apiKey, {
+                              cursor: null,
+                              signal: controller.signal,
+                          })
+                        : provider.search(apiKey, trimmed, {
+                              cursor: null,
+                              signal: controller.signal,
+                          });
+
+                request
+                    .then((page) => {
+                        setResults(page.results);
+                        setNextCursor(page.nextCursor);
                         setStatus('ready');
                     })
                     .catch((error: unknown) => {
@@ -63,7 +70,7 @@ export function GiphyPickerDialog({
                         }
 
                         setStatus(
-                            error instanceof GiphyRateLimited
+                            error instanceof GifRateLimited
                                 ? 'rate-limited'
                                 : 'error',
                         );
@@ -76,24 +83,29 @@ export function GiphyPickerDialog({
             clearTimeout(timeout);
             controller.abort();
         };
-    }, [open, query, apiKey, reloads]);
+    }, [open, query, apiKey, reloads, provider]);
 
     const loadMore = () => {
         setIsLoadingMore(true);
-        fetchGifs(urlFor(results.length))
-            .then((gifs) => setResults((current) => [...current, ...gifs]))
+        const trimmed = query.trim();
+        const request =
+            trimmed === ''
+                ? provider.trending(apiKey, { cursor: nextCursor })
+                : provider.search(apiKey, trimmed, { cursor: nextCursor });
+
+        request
+            .then((page) => {
+                setResults((current) => [...current, ...page.results]);
+                setNextCursor(page.nextCursor);
+            })
             .catch(() => undefined)
             .finally(() => setIsLoadingMore(false));
     };
 
-    const pick = (result: GiphyResult) => {
-        const gif = attachmentFromResult(result);
-
-        if (gif !== null) {
-            onPick(gif);
-            onOpenChange(false);
-            setQuery('');
-        }
+    const pick = (result: GifResult) => {
+        onPick(attachmentFromResult(provider.id, result));
+        onOpenChange(false);
+        setQuery('');
     };
 
     return (
@@ -102,19 +114,19 @@ export function GiphyPickerDialog({
                 <DialogHeader>
                     <DialogTitle>Attach a GIF</DialogTitle>
                     <DialogDescription className="sr-only">
-                        Search GIPHY and pick a GIF to attach.
+                        Search {provider.label} and pick a GIF to attach.
                     </DialogDescription>
                 </DialogHeader>
                 <input
                     autoFocus
                     value={query}
                     onChange={(event) => setQuery(event.target.value)}
-                    placeholder="grep giphy…"
-                    aria-label="Search GIPHY"
+                    placeholder={provider.searchPlaceholder}
+                    aria-label={provider.searchPlaceholder}
                     autoComplete="off"
                     spellCheck={false}
                     className="h-9 w-full min-w-0 rounded-md border bg-card px-3 text-base outline-none placeholder:text-muted-foreground focus-visible:border-primary md:text-sm"
-                    data-test="giphy-search-input"
+                    data-test="gif-search-input"
                 />
                 {status === 'loading' && (
                     <p className="py-8 text-center text-sm text-muted-foreground">
@@ -123,14 +135,14 @@ export function GiphyPickerDialog({
                 )}
                 {status === 'rate-limited' && (
                     <p className="py-8 text-center text-sm text-muted-foreground">
-                        You’ve hit your GIPHY key’s search rate limit. Try again
-                        shortly.
+                        You’ve hit your {provider.label} key’s search rate
+                        limit. Try again shortly.
                     </p>
                 )}
                 {status === 'error' && (
                     <div className="py-8 text-center">
                         <p className="text-sm text-muted-foreground">
-                            GIPHY did not answer.
+                            {provider.label} did not answer.
                         </p>
                         <Button
                             type="button"
@@ -152,36 +164,34 @@ export function GiphyPickerDialog({
                     <>
                         <ul
                             className="grid grid-cols-3 gap-1"
-                            data-test="giphy-results"
+                            data-test="gif-results"
                         >
-                            {results.map((result) => {
-                                const preview = previewUrlFor(result);
-
-                                return preview === null ? null : (
+                            {results.map((result) =>
+                                result.previewUrl === null ? null : (
                                     <li key={result.id}>
                                         <button
                                             type="button"
                                             onClick={() => pick(result)}
                                             className="block w-full overflow-hidden rounded-md border focus-visible:ring-2 focus-visible:ring-ring"
                                             aria-label={
-                                                result.title === ''
+                                                result.title === null
                                                     ? 'Attach GIF'
                                                     : `Attach: ${result.title}`
                                             }
                                         >
                                             <img
-                                                src={preview}
-                                                alt={result.title}
+                                                src={result.previewUrl}
+                                                alt={result.title ?? 'GIF'}
                                                 loading="lazy"
                                                 referrerPolicy="no-referrer"
                                                 className="h-24 w-full bg-muted object-cover"
                                             />
                                         </button>
                                     </li>
-                                );
-                            })}
+                                ),
+                            )}
                         </ul>
-                        {results.length % pageSize === 0 && (
+                        {nextCursor !== null && (
                             <Button
                                 type="button"
                                 variant="secondary"
@@ -197,12 +207,12 @@ export function GiphyPickerDialog({
                 )}
                 <div className="flex justify-center border-t pt-3">
                     <a
-                        href="https://giphy.com"
+                        href={provider.attribution.href}
                         target="_blank"
                         rel="noopener noreferrer"
                     >
                         <span className="font-mono text-[11px] font-bold tracking-wide text-muted-foreground">
-                            Powered By GIPHY
+                            {provider.attribution.label}
                         </span>
                     </a>
                 </div>

@@ -7,7 +7,8 @@
     "include": [
         "Unit/**/*.test.ts",
         "Unit/DraftStash.test.tsx",
-        "Unit/CommitGiphy.test.tsx",
+        "Unit/CommitGif.test.tsx",
+        "Unit/GifPickerDialog.test.tsx",
         "Unit/GifKeySetting.test.tsx",
         "Unit/ComposerDraft.test.tsx",
         "Unit/SearchDialogComposition.test.tsx",
@@ -15,7 +16,8 @@
         "Unit/ImageAttachments.test.tsx",
         "../resources/js/types/*.d.ts",
         "draft-images.config.ts",
-        "commit-giphy.config.ts",
+        "commit-gif.config.ts",
+        "gif-picker.config.ts",
         "gif-key.config.ts"
     ]
 }

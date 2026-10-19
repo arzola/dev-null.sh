@@ -8,6 +8,6 @@ export default defineConfig({
         },
     },
     test: {
-        include: ['tests/Unit/CommitGiphy.test.tsx'],
+        include: ['tests/Unit/GifPickerDialog.test.tsx'],
     },
 });

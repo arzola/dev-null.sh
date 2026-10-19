@@ -4,17 +4,19 @@ import * as React from 'react';
 import type { ReactElement, ReactNode } from 'react';
 import { beforeEach, test, vi } from 'vite-plus/test';
 import { cancelImageReads } from '../../resources/js/lib/draft-image-reads';
-import type { GiphyAttachment } from '../../resources/js/lib/giphy';
+import type { GifAttachment } from '../../resources/js/lib/gif-providers/types';
 
 const image = new File(['restored'], 'draft.png', { type: 'image/png' });
-const gif: GiphyAttachment = {
+const gif: GifAttachment = {
+    provider: 'giphy',
     id: 'xT9IgzoKnwFNmISR8I',
     url: 'https://media2.giphy.com/media/xT9IgzoKnwFNmISR8I/giphy-downsized-medium.gif?cid=abc',
-    page_url: 'https://giphy.com/gifs/deal-with-it-xT9IgzoKnwFNmISR8I',
+    pageUrl: 'https://giphy.com/gifs/deal-with-it-xT9IgzoKnwFNmISR8I',
     title: 'Deal With It GIF',
     username: 'giphy',
     width: 480,
     height: 270,
+    previewUrl: 'https://media2.giphy.com/media/xT9IgzoKnwFNmISR8I/100.gif?cid=abc',
 };
 let state: unknown[] = [];
 let cursor = 0;
@@ -23,14 +25,14 @@ const draft = {
     body: 'A restored draft https://example.com',
     images: [] as File[],
     descriptions: [] as string[],
-    gif: null as GiphyAttachment | null,
+    gif: null as GifAttachment | null,
     isRestored: true,
     updateBody: vi.fn(),
     updateImages: vi.fn((images: File[], descriptions: string[]) => {
         draft.images = images;
         draft.descriptions = descriptions;
     }),
-    updateGif: vi.fn((picked: GiphyAttachment | null) => {
+    updateGif: vi.fn((picked: GifAttachment | null) => {
         draft.gif = picked;
     }),
     drop: vi.fn(),
@@ -76,7 +78,7 @@ vi.doMock('@inertiajs/react', async () => ({
     usePage: () => ({
         props: {
             auth: { user, isAdmin: false },
-            giphy: { key: 'test' },
+            gif: { provider: 'giphy', key: 'test' },
         },
     }),
     useHttp: () => http,
@@ -96,8 +98,8 @@ const { IssueCommandBadge, IssueCommandHint, IssueCommandSuggestions } =
     await import('../../resources/js/components/issue-command');
 const { ImageDropOverlay, ImagePickerButton, ImagePickerPreviews } =
     await import('../../resources/js/components/commit-image-picker');
-const { GiphyPickerButton } =
-    await import('../../resources/js/components/giphy-picker-button');
+const { GifPickerButton } =
+    await import('../../resources/js/components/gif-picker-button');
 const { ComposerPreviewBody, PreviewToggle } =
     await import('../../resources/js/components/composer-preview');
 const { MentionTextarea } =
@@ -441,7 +443,7 @@ test('previews restored images and descriptions while keeping them attached when
     });
 });
 
-test('picking a gif clears attached images and any poll and submits the giphy fields', () => {
+test('picking a gif clears attached images and any poll and submits the gif fields', () => {
     draft.images = [image];
     draft.descriptions = ['A restored screenshot'];
     let view = render();
@@ -458,10 +460,10 @@ test('picking a gif clears attached images and any poll and submits the giphy fi
             view.fields.some((element) => element.type === PollEditor),
             true,
         );
-        const giphyButton = view.fields.find(
-            (element) => element.type === GiphyPickerButton,
+        const gifButton = view.fields.find(
+            (element) => element.type === GifPickerButton,
         )!;
-        (giphyButton.props.onPick as (picked: GiphyAttachment) => void)(gif);
+        (gifButton.props.onPick as (picked: GifAttachment) => void)(gif);
         assert.deepEqual(draft.images, []);
         assert.deepEqual(draft.descriptions, []);
         assert.equal(draft.gif, gif);
@@ -472,15 +474,16 @@ test('picking a gif clears attached images and any poll and submits the giphy fi
         );
         assert.deepEqual(view.form.props.transform({ body: draft.body }), {
             body: draft.body,
-            giphy_id: 'xT9IgzoKnwFNmISR8I',
-            giphy_url:
+            gif_provider: 'giphy',
+            gif_id: 'xT9IgzoKnwFNmISR8I',
+            gif_url:
                 'https://media2.giphy.com/media/xT9IgzoKnwFNmISR8I/giphy-downsized-medium.gif?cid=abc',
-            giphy_page_url:
+            gif_page_url:
                 'https://giphy.com/gifs/deal-with-it-xT9IgzoKnwFNmISR8I',
-            giphy_title: 'Deal With It GIF',
-            giphy_username: 'giphy',
-            giphy_width: 480,
-            giphy_height: 270,
+            gif_title: 'Deal With It GIF',
+            gif_username: 'giphy',
+            gif_width: 480,
+            gif_height: 270,
         });
     } finally {
         vi.unstubAllGlobals();

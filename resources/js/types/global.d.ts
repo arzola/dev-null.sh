@@ -18,7 +18,7 @@ declare module '@inertiajs/core' {
             hasUnmoderatedCommits: boolean;
             sidebarOpen: boolean;
             showsWhoToFollow: boolean;
-            giphy: { key: string } | null;
+            gif: { provider: 'giphy' | 'klipy'; key: string } | null;
             dimsLanes: boolean;
             repliesPerPage: number;
             suggestedUsers?: SuggestedUser[];

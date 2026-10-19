@@ -6,8 +6,8 @@ import {
     revokeObjectUrls,
 } from '@/components/commit-image-picker';
 import { cancelImageRead, cancelImageReads } from '@/lib/draft-image-reads';
+import type { GifAttachment } from '@/lib/gif-providers/types';
 import { readStoredGif, writeStoredGif } from '@/lib/gif-storage';
-import type { GiphyAttachment } from '@/lib/giphy';
 import type { StoredImages } from '@/lib/image-storage';
 import {
     deleteStoredImages,
@@ -22,18 +22,18 @@ export type UseStashReturn = {
     readonly body: string;
     readonly images: File[];
     readonly descriptions: string[];
-    readonly gif: GiphyAttachment | null;
+    readonly gif: GifAttachment | null;
     readonly isRestored: boolean;
     readonly updateBody: (body: string) => void;
     readonly updateImages: (images: File[], descriptions?: string[]) => void;
-    readonly updateGif: (gif: GiphyAttachment | null) => void;
+    readonly updateGif: (gif: GifAttachment | null) => void;
     readonly drop: () => void;
 };
 
 const listeners = new Set<() => void>();
 const pending = new Map<string, string>();
 const images = new Map<string, StoredImages>();
-const gifs = new Map<string, GiphyAttachment | null>();
+const gifs = new Map<string, GifAttachment | null>();
 const restoredImageKeys = new Set<string>();
 const noImages: StoredImages = { images: [], descriptions: [] };
 let timeout: ReturnType<typeof setTimeout> | undefined;
@@ -50,7 +50,7 @@ const read = (key: string): string =>
 
 const imagesFor = (key: string): StoredImages => images.get(key) ?? noImages;
 
-const gifFor = (key: string): GiphyAttachment | null => {
+const gifFor = (key: string): GifAttachment | null => {
     if (!gifs.has(key)) {
         gifs.set(key, readStoredGif(key));
     }
@@ -58,7 +58,7 @@ const gifFor = (key: string): GiphyAttachment | null => {
     return gifs.get(key) ?? null;
 };
 
-const storeGif = (key: string, gif: GiphyAttachment | null): void => {
+const storeGif = (key: string, gif: GifAttachment | null): void => {
     gifs.set(key, gif);
     writeStoredGif(key, gif);
     notify();
@@ -278,7 +278,7 @@ export function useStash(userId: string, name: string): UseStashReturn {
         storeImages(key, next, descriptions);
     };
 
-    const updateGif = (next: GiphyAttachment | null): void => {
+    const updateGif = (next: GifAttachment | null): void => {
         if (next === null && body === '' && draftImages.length === 0) {
             setIsDraftRestored(false);
         }
