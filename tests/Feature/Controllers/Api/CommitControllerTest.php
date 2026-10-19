@@ -201,10 +201,11 @@ it('limits each address to 60 requests a minute', function (): void {
 });
 
 it('includes the gif of a commit', function (): void {
-    $commit = Commit::factory()->withGiphy()->create();
+    $commit = Commit::factory()->withGif()->create();
 
     $this->getJson("/api/v1/commits/{$commit->id}")
         ->assertOk()
+        ->assertJsonPath('data.gif.provider', 'giphy')
         ->assertJsonPath('data.gif.id', 'xT9IgzoKnwFNmISR8I')
         ->assertJsonPath('data.gif.url', 'https://media2.giphy.com/media/xT9IgzoKnwFNmISR8I/giphy-downsized-medium.gif?cid=abc123')
         ->assertJsonPath('data.gif.width', 480);

@@ -36,8 +36,8 @@ final readonly class UpdateCommitAiDecision
             fn (CommitImage $image): string => 'data:image/webp;base64,'.base64_encode((string) Storage::get($image->path)),
         )->all());
 
-        if ($commit->giphy_url !== null) {
-            $images[] = $commit->giphy_url;
+        if ($commit->gif_url !== null) {
+            $images[] = $commit->gif_url;
         }
 
         $scores = $this->openAI->moderate($commit->body, $images);

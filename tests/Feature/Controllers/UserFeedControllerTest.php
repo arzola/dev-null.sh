@@ -214,7 +214,7 @@ it('returns not found for unknown usernames', function (): void {
 
 it('lists an attached gif as an enclosure', function (): void {
     $user = User::factory()->create();
-    Commit::factory()->for($user)->withGiphy()->create();
+    Commit::factory()->for($user)->withGif()->create();
 
     $response = $this->get(route('user-feed.show', $user));
 
