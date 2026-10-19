@@ -19,6 +19,8 @@ declare module '@inertiajs/core' {
             sidebarOpen: boolean;
             showsWhoToFollow: boolean;
             giphy: { key: string } | null;
+            dimsLanes: boolean;
+            repliesPerPage: number;
             suggestedUsers?: SuggestedUser[];
             [key: string]: unknown;
         };

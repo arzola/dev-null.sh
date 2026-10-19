@@ -26,6 +26,7 @@ import {
     DialogTitle,
 } from '@/components/ui/dialog';
 import { UserAvatar } from '@/components/user-avatar';
+import { useMarkCommitDeleted } from '@/hooks/use-deleted-resources';
 import { useImageAttachments } from '@/hooks/use-image-attachments';
 import { useSecretWarning } from '@/hooks/use-secret-warning';
 import { moveCaretToEnd, useHasStash, useStash } from '@/hooks/use-stash';
@@ -109,6 +110,7 @@ function QuoteComposer({
     onClose: () => void;
 }) {
     const { user } = useUser();
+    const markCommitDeleted = useMarkCommitDeleted();
     const id = `quote-${commit.id}`;
     const {
         body,
@@ -116,12 +118,18 @@ function QuoteComposer({
         descriptions,
         gif,
         isRestored,
+        key: stashKey,
         updateBody,
         updateImages,
         updateGif,
         drop,
     } = useStash(user.id, id);
-    const attachments = useImageAttachments(images, descriptions, updateImages);
+    const attachments = useImageAttachments(
+        images,
+        descriptions,
+        updateImages,
+        stashKey,
+    );
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const secrets = useSecretWarning(body);
     const keys = useKeyLabels();
@@ -136,7 +144,12 @@ function QuoteComposer({
         images.length > 0 || characterCount(body.trim()) >= minBodyLength;
 
     const submitOnModEnter = (event: KeyboardEvent<HTMLTextAreaElement>) => {
-        if (event.key === 'Enter' && hasModKey(event) && isQuotable) {
+        if (
+            event.key === 'Enter' &&
+            hasModKey(event) &&
+            isQuotable &&
+            !attachments.isReading()
+        ) {
             event.preventDefault();
             event.currentTarget.form?.requestSubmit();
         }
@@ -174,7 +187,9 @@ function QuoteComposer({
             <Form
                 {...CommitController.store.form()}
                 errorBag="quote"
-                onBefore={secrets.beforeSubmit}
+                onBefore={() =>
+                    !attachments.isReading() && secrets.beforeSubmit()
+                }
                 transform={(data) =>
                     gif !== null
                         ? { ...data, ...giphyFormFields(gif) }
@@ -187,6 +202,12 @@ function QuoteComposer({
                           : data
                 }
                 options={{ preserveScroll: true }}
+                onError={(errors) => {
+                    if (errors.quoted_commit_id) {
+                        markCommitDeleted(commit.id);
+                        onClose();
+                    }
+                }}
                 onSuccess={(page) => {
                     if (!isRejectedSubmission(page.flash)) {
                         attachments.clear();
@@ -275,9 +296,10 @@ function QuoteComposer({
                                     <ImagePickerButton
                                         count={images.length}
                                         disabled={processing}
+                                        reading={attachments.reading}
                                         onPick={(files) => {
                                             updateGif(null);
-                                            attachments.attach(files);
+                                            return attachments.pick(files);
                                         }}
                                         className="size-8"
                                     />
@@ -317,7 +339,11 @@ function QuoteComposer({
                                 </Button>
                                 <Button
                                     type="submit"
-                                    disabled={processing || !isQuotable}
+                                    disabled={
+                                        processing ||
+                                        attachments.reading ||
+                                        !isQuotable
+                                    }
                                     title={`Quote (${keys.combo(keys.mod, keys.enter)})`}
                                     data-test="submit-quote-button"
                                 >

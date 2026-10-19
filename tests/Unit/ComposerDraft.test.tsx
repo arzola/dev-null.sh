@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import * as React from 'react';
 import type { ReactElement, ReactNode } from 'react';
 import { beforeEach, test, vi } from 'vite-plus/test';
+import { cancelImageReads } from '../../resources/js/lib/draft-image-reads';
 import type { GiphyAttachment } from '../../resources/js/lib/giphy';
 
 const image = new File(['restored'], 'draft.png', { type: 'image/png' });
@@ -18,6 +19,7 @@ const gif: GiphyAttachment = {
 let state: unknown[] = [];
 let cursor = 0;
 const draft = {
+    key: 'stash:viewer:commit',
     body: 'A restored draft https://example.com',
     images: [] as File[],
     descriptions: [] as string[],
@@ -43,6 +45,7 @@ const http = {
 vi.doMock('react', () => ({
     ...React,
     useEffect: (effect: () => void) => effect(),
+    useLayoutEffect: (effect: () => void | (() => void)) => effect(),
     useMemo: (factory: () => unknown) => factory(),
     useId: () => `preview-${cursor++}`,
     useSyncExternalStore: (_subscribe: unknown, snapshot: () => unknown) =>
@@ -136,6 +139,7 @@ function render() {
 
 beforeEach(() => {
     vi.clearAllMocks();
+    cancelImageReads('');
     state = [];
     draft.body = 'A restored draft https://example.com';
     draft.images = [];
@@ -498,11 +502,17 @@ test('attaching images while a gif is stashed clears the gif and submits the ima
         ),
         true,
     );
-    (
+    const picked = (
         view.fields.find((element) => element.type === ImagePickerButton)!
-            .props.onPick as (files: File[]) => void
+            .props.onPick as (files: File[]) => Promise<void>
     )([image]);
+    picked.catch(() => undefined);
     assert.equal(draft.gif, null);
+
+    // The provider finishes reading the picked file asynchronously.
+    cancelImageReads('');
+    draft.images = [image];
+    draft.descriptions = [''];
     view = render();
     assert.deepEqual(view.form.props.transform({ body: draft.body }), {
         body: draft.body,
@@ -579,8 +589,35 @@ function keyDown(
     return event;
 }
 
+function focus(view: ReturnType<typeof render>, handler = 'onFocus') {
+    const textarea = view.fields.find(
+        (element) => element.type === MentionTextarea,
+    )!;
+    (textarea.props[handler] as (event: unknown) => void)({
+        currentTarget: { selectionStart: 0, selectionEnd: 0 },
+    });
+}
+
+function hasSuggestions(): boolean {
+    return render().fields.some(
+        (element) => element.type === IssueCommandSuggestions,
+    );
+}
+
+test('a restored slash only opens the command menu while the composer is focused', () => {
+    draft.body = '/';
+    assert.equal(hasSuggestions(), false);
+
+    focus(render());
+    assert.equal(hasSuggestions(), true);
+
+    focus(render(), 'onBlur');
+    assert.equal(hasSuggestions(), false);
+});
+
 test('typing a command and a space turns the draft into an issue, and backspace turns it back into a commit', () => {
     draft.body = '/bu';
+    focus(render());
     let view = render();
     const suggestions = view.fields.find(
         (element) => element.type === IssueCommandSuggestions,
@@ -634,6 +671,7 @@ test('typing a command and a space turns the draft into an issue, and backspace 
 
 test('picking a suggestion with Enter starts an empty issue, and the shortcut opens it instead of committing', () => {
     draft.body = '/';
+    focus(render());
     keyDown(render(), 'ArrowDown');
     const enter = keyDown(render(), 'Enter');
     assert.equal(enter.preventDefault.mock.calls.length, 1);
@@ -689,6 +727,7 @@ test('a draft that mentions a bug suggests /bug, keeps the text when used, and c
 test('commands are not offered while the draft has images, a poll or a schedule', () => {
     draft.images = [image];
     draft.body = '/';
+    focus(render());
     const view = render();
     assert.equal(
         view.fields.some((element) => element.type === IssueCommandSuggestions),
@@ -740,4 +779,50 @@ test('turning scheduling off clears the chosen time and commits now', () => {
 
     (find('aria-controls', 'body-schedule')!.props.onClick as () => void)();
     assert.equal(find('id', 'body-scheduled-at')!.props.value, '');
+});
+
+test('picker clears its selection before a pending read finishes so the same file can be retried', async () => {
+    const reads: Array<() => void> = [];
+    const selections: File[][] = [];
+    const picker = ImagePickerButton({
+        count: 0,
+        onPick: (files) => {
+            selections.push(files);
+            return new Promise<void>((resolve) => reads.push(resolve));
+        },
+    });
+    const inputElement = elements(picker).find(
+        (element) => element.type === 'input',
+    )!;
+    const onChange = inputElement.props.onChange as (event: {
+        currentTarget: { value: string; files: File[] };
+    }) => Promise<void>;
+    let selected = [image];
+    let value = 'draft.png';
+    const input = {
+        get files() {
+            return selected;
+        },
+        get value() {
+            return value;
+        },
+        set value(next: string) {
+            value = next;
+            if (next === '') selected = [];
+        },
+    };
+
+    const first = onChange({ currentTarget: input });
+    assert.equal(input.value, '');
+    assert.deepEqual(selections, [[image]]);
+
+    // Discarding a draft releases the picker before the first provider settles.
+    selected = [image];
+    value = 'draft.png';
+    const retry = onChange({ currentTarget: input });
+    assert.equal(input.value, '');
+    assert.deepEqual(selections, [[image], [image]]);
+
+    reads.forEach((resolve) => resolve());
+    await Promise.all([first, retry]);
 });

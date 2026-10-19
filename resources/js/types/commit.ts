@@ -62,6 +62,17 @@ export type BodySegment =
     | { type: 'code'; code: string }
     | { type: 'block'; language: string | null; html: string };
 
+export type CommitTranslation = {
+    language: string;
+    source_language: string | null;
+    source_name: string | null;
+    available: boolean;
+    translated: {
+        body_segments: BodySegment[];
+        preview_segments: BodySegment[] | null;
+    } | null;
+};
+
 export type Commit = {
     id: string;
     user_id: string;
@@ -71,6 +82,7 @@ export type Commit = {
     mentions: Record<string, string> | null;
     body_segments: BodySegment[];
     preview_segments: BodySegment[] | null;
+    translation?: CommitTranslation | null;
     status: CommitStatus;
     is_checking?: boolean;
     created_at: string;
@@ -82,6 +94,7 @@ export type Commit = {
     user: User;
     replies_count?: number;
     reply_preview?: CursorPaginated<ThreadCommit>;
+    continuation_id?: string | null;
     is_saved?: boolean;
     saved_order?: number | null;
     is_pinned?: boolean;
@@ -122,6 +135,14 @@ export type DeletedCommit = {
 };
 
 export type ThreadCommit = Commit | DeletedCommit;
+
+export type ThreadContinuation = {
+    data: Commit[];
+    position: number;
+    length: number;
+    is_capped: boolean;
+    next_id: string | null;
+};
 
 export type CursorPaginated<T> = {
     data: T[];
