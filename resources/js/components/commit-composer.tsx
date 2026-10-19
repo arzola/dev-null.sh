@@ -56,7 +56,13 @@ import {
     isRejectedSubmission,
     laneColor,
 } from '@/lib/utils';
+import { show } from '@/routes/user';
 import type { User } from '@/types';
+
+// The ring moves quickly while a post starts and slows toward the limit, yet only closes at the limit.
+function bodyProgress(count: number): number {
+    return Math.log1p(count) / Math.log1p(maxBodyLength);
+}
 
 function focusBody(id: string): void {
     requestAnimationFrame(() => document.getElementById(id)?.focus());
@@ -124,6 +130,7 @@ function CommitComposerBody({
         setIsScheduling,
     } = schedule;
     const hasImages = attachments.images.length > 0;
+    const progress = bodyProgress(characterCount(body));
     const isFilled = hasImages || characterCount(body.trim()) >= minBodyLength;
     const error = errors.body ?? errors.link_preview_url;
     const scheduleError =
@@ -180,7 +187,19 @@ function CommitComposerBody({
                 variant="staged"
                 isFilled={isFilled}
                 hasTail={!isInDialog}
-                node={<RailAvatar user={user} isStaged={!isFilled} />}
+                node={
+                    isInDialog ? (
+                        <RailAvatar user={user} progress={progress} />
+                    ) : (
+                        <Link
+                            href={show(user)}
+                            aria-label="View your profile"
+                            className="flex rounded-full"
+                        >
+                            <RailAvatar user={user} progress={progress} />
+                        </Link>
+                    )
+                }
             />
 
             <div
@@ -377,7 +396,8 @@ function CommitComposerBody({
                                     <ImagePickerButton
                                         count={attachments.images.length}
                                         disabled={processing || poll !== null}
-                                        onPick={attachments.attach}
+                                        reading={attachments.reading}
+                                        onPick={attachments.pick}
                                         inputRef={imageInputRef}
                                         className="-ml-2"
                                     />
@@ -394,6 +414,7 @@ function CommitComposerBody({
                                             size="icon"
                                             disabled={
                                                 processing ||
+                                                attachments.reading ||
                                                 poll !== null ||
                                                 hasImages
                                             }
@@ -467,7 +488,13 @@ function CommitComposerBody({
                                     disabled={
                                         issue.processing || !isSubmittable
                                     }
-                                    onClick={() => void issue.submit()}
+                                    onClick={() => {
+                                        if (attachments.isReading()) {
+                                            return;
+                                        }
+
+                                        void issue.submit();
+                                    }}
                                     className="min-w-30"
                                     data-test="open-issue-button"
                                 >
@@ -532,12 +559,14 @@ export function CommitComposer({
         stash.images,
         stash.descriptions,
         stash.updateImages,
+        stash.key,
     );
     const [poll, setPoll] = useState<PollDraft | null>(null);
     const secrets = useSecretWarning(body);
 
     const hasImages = attachments.images.length > 0;
     const isCommittable =
+        !attachments.reading &&
         (hasImages || characterCount(body.trim()) >= minBodyLength) &&
         (poll === null ||
             poll.options.every((option) => option.trim().length > 0));
@@ -550,7 +579,11 @@ export function CommitComposer({
     const issue = useIssueCommand({
         body,
         updateBody: stash.updateBody,
-        enabled: !hasImages && poll === null && !isScheduling,
+        enabled:
+            !attachments.reading &&
+            !hasImages &&
+            poll === null &&
+            !isScheduling,
         hasSecrets: secrets.findings.length > 0,
         onCreated: () => {
             drop();
@@ -561,11 +594,21 @@ export function CommitComposer({
     useEffect(() => discardSeriesStash(user.id), [user.id]);
 
     const onKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
-        if (issue.handleKeyDown(event, isCommittable)) {
+        if (
+            issue.handleKeyDown(
+                event,
+                isCommittable && !attachments.isReading(),
+            )
+        ) {
             return;
         }
 
-        if (event.key === 'Enter' && hasModKey(event) && isSubmittable) {
+        if (
+            event.key === 'Enter' &&
+            hasModKey(event) &&
+            isSubmittable &&
+            !attachments.isReading()
+        ) {
             event.preventDefault();
             event.currentTarget.form?.requestSubmit();
         }
@@ -577,7 +620,11 @@ export function CommitComposer({
             {...(isScheduling
                 ? ScheduledCommitController.store.form()
                 : CommitController.store.form())}
-            onBefore={() => issue.command === null && secrets.beforeSubmit()}
+            onBefore={() =>
+                !attachments.isReading() &&
+                issue.command === null &&
+                secrets.beforeSubmit()
+            }
             transform={(data) => ({
                 ...data,
                 ...(hasImages && {

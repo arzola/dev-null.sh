@@ -12,6 +12,7 @@ const draft = {
     images: [] as File[],
     descriptions: [] as string[],
     isRestored: true,
+    key: 'stash:viewer:commit',
     updateBody: vi.fn(),
     updateImages: vi.fn((images: File[], descriptions: string[]) => {
         draft.images = images;
@@ -29,6 +30,7 @@ const http = {
 vi.doMock('react', () => ({
     ...React,
     useEffect: () => {},
+    useLayoutEffect: (effect: () => void | (() => void)) => effect(),
     useMemo: (factory: () => unknown) => factory(),
     useId: () => `preview-${cursor++}`,
     useSyncExternalStore: (_subscribe: unknown, snapshot: () => unknown) =>
@@ -647,4 +649,50 @@ test('passes slash command context and callbacks to the composer textarea', () =
     } finally {
         vi.unstubAllGlobals();
     }
+});
+
+test('picker clears its selection before a pending read finishes so the same file can be retried', async () => {
+    const reads: Array<() => void> = [];
+    const selections: File[][] = [];
+    const picker = ImagePickerButton({
+        count: 0,
+        onPick: (files) => {
+            selections.push(files);
+            return new Promise<void>((resolve) => reads.push(resolve));
+        },
+    });
+    const inputElement = elements(picker).find(
+        (element) => element.type === 'input',
+    )!;
+    const onChange = inputElement.props.onChange as (event: {
+        currentTarget: { value: string; files: File[] };
+    }) => Promise<void>;
+    let selected = [image];
+    let value = 'draft.png';
+    const input = {
+        get files() {
+            return selected;
+        },
+        get value() {
+            return value;
+        },
+        set value(next: string) {
+            value = next;
+            if (next === '') selected = [];
+        },
+    };
+
+    const first = onChange({ currentTarget: input });
+    assert.equal(input.value, '');
+    assert.deepEqual(selections, [[image]]);
+
+    // Discarding a draft releases the picker before the first provider settles.
+    selected = [image];
+    value = 'draft.png';
+    const retry = onChange({ currentTarget: input });
+    assert.equal(input.value, '');
+    assert.deepEqual(selections, [[image], [image]]);
+
+    reads.forEach((resolve) => resolve());
+    await Promise.all([first, retry]);
 });
