@@ -233,6 +233,15 @@ test('disables connect until a key is typed', () => {
     assert.equal(field(fields, 'gif-connect-button').props.disabled, true);
 });
 
+test('does not save a whitespace-only key', async () => {
+    stubFetch(200);
+
+    const fields = typeKey(render(disconnected), '   ', disconnected);
+    await (field(fields, 'gif-connect-button').props.onClick as () => Promise<void>)();
+
+    assert.equal(put.mock.calls.length, 0);
+});
+
 test('surfaces server validation errors', async () => {
     stubFetch(200);
 
@@ -280,4 +289,21 @@ test('replaces the connected provider when another is chosen', async () => {
         provider: 'klipy',
         key: 'klipy-key',
     });
+
+    const options = put.mock.calls[0]?.[2] as { onSuccess: () => void };
+    options.onSuccess();
+
+    fields = render({ gifConnected: true, gifProvider: 'klipy' });
+
+    assert.equal(
+        React.Children.toArray(
+            field(fields, 'gif-connected').props.children as ReactNode,
+        )
+            .map((child) => (typeof child === 'string' ? child : ''))
+            .join(''),
+        'Connected to KLIPY.',
+    );
+
+    fields = render(disconnected);
+    assert.equal(field(fields, 'gif-key-input').props.value, '');
 });

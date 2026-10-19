@@ -98,7 +98,11 @@ export function GifKeySetting({
     };
 
     return (
-        <section className="px-4 py-6 sm:px-6">
+        <section
+            aria-labelledby="gif-key-label"
+            aria-describedby="gif-key-description"
+            className="px-4 py-6 sm:px-6"
+        >
             <h2 id="gif-key-label" className="text-base font-semibold">
                 GIFs
             </h2>
@@ -164,7 +168,11 @@ export function GifKeySetting({
                                         ? 'default'
                                         : 'outline'
                                 }
-                                onClick={() => setProviderId(candidate.id)}
+                                aria-pressed={candidate.id === providerId}
+                                onClick={() => {
+                                    setProviderId(candidate.id);
+                                    setError(null);
+                                }}
                                 data-test={`provider-${candidate.id}`}
                             >
                                 {candidate.label}
