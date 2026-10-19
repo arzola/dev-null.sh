@@ -6,6 +6,7 @@ use App\Actions\DeleteUser;
 use App\Enums\CommitStatus;
 use App\Enums\GifProvider;
 use App\Models\Commit;
+use App\Models\CommitGif;
 use App\Models\CommitImage;
 use App\Models\LinkPreview;
 use App\Models\User;
@@ -485,4 +486,12 @@ it('leaves the gif out of a tombstone', function (): void {
     $commit->delete();
 
     expect($commit->fresh()?->toArray())->not->toHaveKey('gif');
+});
+
+it('creates its gif through the factory', function (): void {
+    $gif = CommitGif::factory()->create();
+
+    expect($gif->provider)->toBe(GifProvider::Giphy)
+        ->and($gif->commit)->toBeInstanceOf(Commit::class)
+        ->and($gif->toPayload()['id'])->toBe('xT9IgzoKnwFNmISR8I');
 });
