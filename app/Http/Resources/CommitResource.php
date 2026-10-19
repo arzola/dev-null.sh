@@ -60,7 +60,7 @@ final class CommitResource extends JsonResource
             'replies_count' => $this->whenCounted('replies'),
             'link_preview' => $this->whenLoaded('linkPreview'),
             'images' => $this->whenLoaded('images'),
-            'gif' => $this->gif(),
+            'gif' => $this->gif?->toPayload(),
             'author' => UserResource::make($this->user),
         ];
 

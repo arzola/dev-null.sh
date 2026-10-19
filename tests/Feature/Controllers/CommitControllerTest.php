@@ -1449,9 +1449,9 @@ it('may attach a giphy gif to a commit', function (): void {
     $response->assertSessionHasNoErrors();
 
     $commit = $user->commits()->sole();
-    expect($commit->gif_id)->toBe('xT9IgzoKnwFNmISR8I')
-        ->and($commit->gif_url)->toBe('https://media2.giphy.com/media/v1.Y2lkPTc5MGI3NjEx/giphy-downsized-medium.gif?cid=abc123&rid=giphy.gif')
-        ->and($commit->gif_width)->toBe(480);
+    expect($commit->gif?->provider_gif_id)->toBe('xT9IgzoKnwFNmISR8I')
+        ->and($commit->gif?->url)->toBe('https://media2.giphy.com/media/v1.Y2lkPTc5MGI3NjEx/giphy-downsized-medium.gif?cid=abc123&rid=giphy.gif')
+        ->and($commit->gif?->width)->toBe(480);
 });
 
 it('accepts a klipy gif', function (): void {
@@ -1469,7 +1469,7 @@ it('accepts a klipy gif', function (): void {
 
     $response->assertSessionHasNoErrors();
 
-    expect($user->commits()->sole()->gif_provider->value)->toBe('klipy');
+    expect($user->commits()->sole()->gif?->provider->value)->toBe('klipy');
 });
 
 it('rejects a gif url from another provider', function (): void {

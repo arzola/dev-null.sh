@@ -28,8 +28,14 @@ final class CommitBuilder extends Builder
     private const array COLUMNS_BUT_EMBEDDING = [
         'id', 'user_id', 'body', 'created_at', 'updated_at', 'status', 'parent_id', 'deleted_at', 'link_preview_id',
         'quoted_commit_id', 'mentions', 'ai_decision', 'ai_categories', 'root_id', 'hot_score', 'pasteis_count',
-        'gif_provider', 'gif_id', 'gif_url', 'gif_page_url', 'gif_title', 'gif_username', 'gif_width', 'gif_height',
     ];
+
+    public function __construct(QueryBuilder $query)
+    {
+        parent::__construct($query);
+
+        $this->with('gif');
+    }
 
     /**
      * Embeddings are only ever compared within the database, so commits are loaded without theirs rather than carry
@@ -53,6 +59,27 @@ final class CommitBuilder extends Builder
             return parent::getModels();
         } finally {
             $this->query->columns = $selected;
+        }
+    }
+
+    /**
+     * Only a commit loaded with every column can be serialized, which is the only time the gif is read.
+     *
+     * @param  array<int, Commit>  $models
+     * @return array<int, Commit>
+     */
+    public function eagerLoadRelations(array $models): array
+    {
+        $eagerLoads = $this->getEagerLoads();
+
+        if ($models !== [] && ! $this->hasEveryColumn($models[0])) {
+            $this->without('gif');
+        }
+
+        try {
+            return parent::eagerLoadRelations($models);
+        } finally {
+            $this->setEagerLoads($eagerLoads);
         }
     }
 
@@ -315,6 +342,13 @@ final class CommitBuilder extends Builder
     {
         return $this->query->from === $this->getModel()->getTable()
             && ($column === $this->qualifyColumn('*') || ($column === '*' && $this->query->joins === null));
+    }
+
+    private function hasEveryColumn(Commit $commit): bool
+    {
+        $attributes = $commit->getAttributes();
+
+        return array_all(self::COLUMNS_BUT_EMBEDDING, fn (string $column): bool => array_key_exists($column, $attributes));
     }
 
     /**

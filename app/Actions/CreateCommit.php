@@ -67,8 +67,11 @@ final readonly class CreateCommit
                 'quoted_commit_id' => $quotedCommit?->id,
                 'hot_score' => $this->theAlgorithm->score($createdAt, 0, 0),
                 'created_at' => $createdAt,
-                ...$gif?->toColumns() ?? [],
             ]);
+
+            if ($gif instanceof Gif) {
+                $commit->gif()->create($gif->toColumns());
+            }
 
             $this->createCommitImages->handle($commit, $images, $imageDescriptions);
 

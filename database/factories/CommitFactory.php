@@ -63,28 +63,27 @@ final class CommitFactory extends Factory
     {
         $gif = match ($provider) {
             GifProvider::Giphy => [
-                'gif_id' => 'xT9IgzoKnwFNmISR8I',
-                'gif_url' => 'https://media2.giphy.com/media/xT9IgzoKnwFNmISR8I/giphy-downsized-medium.gif?cid=abc123',
-                'gif_page_url' => 'https://giphy.com/gifs/deal-with-it-xT9IgzoKnwFNmISR8I',
-                'gif_title' => 'Deal With It GIF',
-                'gif_username' => 'giphy',
-                'gif_width' => 480,
-                'gif_height' => 270,
+                'provider_gif_id' => 'xT9IgzoKnwFNmISR8I',
+                'url' => 'https://media2.giphy.com/media/xT9IgzoKnwFNmISR8I/giphy-downsized-medium.gif?cid=abc123',
+                'page_url' => 'https://giphy.com/gifs/deal-with-it-xT9IgzoKnwFNmISR8I',
+                'title' => 'Deal With It GIF',
+                'username' => 'giphy',
+                'width' => 480,
+                'height' => 270,
             ],
             GifProvider::Klipy => [
-                'gif_id' => 'hello-hi-662',
-                'gif_url' => 'https://static.klipy.com/ii/935d7ab9/kLipy.gif',
-                'gif_page_url' => 'https://klipy.com/gifs/hello-hi-662',
-                'gif_title' => 'Hello',
-                'gif_username' => null,
-                'gif_width' => 498,
-                'gif_height' => 498,
+                'provider_gif_id' => 'hello-hi-662',
+                'url' => 'https://static.klipy.com/ii/935d7ab9/kLipy.gif',
+                'page_url' => 'https://klipy.com/gifs/hello-hi-662',
+                'title' => 'Hello',
+                'username' => null,
+                'width' => 498,
+                'height' => 498,
             ],
         };
 
-        return $this->state(fn (array $attributes): array => [
-            'gif_provider' => $provider->value,
-            ...$gif,
-        ]);
+        return $this->afterCreating(function (Commit $commit) use ($provider, $gif): void {
+            $commit->gif()->create(['provider' => $provider->value, ...$gif]);
+        });
     }
 }

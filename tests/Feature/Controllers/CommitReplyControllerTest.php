@@ -966,7 +966,7 @@ it('may attach a giphy gif to a reply', function (): void {
 
     $response->assertSessionHasNoErrors();
 
-    expect($user->commits()->sole()->gif_id)->toBe('xT9IgzoKnwFNmISR8I');
+    expect($user->commits()->sole()->gif?->provider_gif_id)->toBe('xT9IgzoKnwFNmISR8I');
 });
 
 it('accepts a klipy gif reply', function (): void {
@@ -985,7 +985,7 @@ it('accepts a klipy gif reply', function (): void {
 
     $response->assertSessionHasNoErrors();
 
-    expect($user->commits()->sole()->gif_provider->value)->toBe('klipy');
+    expect($user->commits()->sole()->gif?->provider->value)->toBe('klipy');
 });
 
 it('rejects invalid providers', function (array $payload): void {

@@ -439,7 +439,7 @@ it('never shows the images of a deleted commit in its tombstone', function (): v
     expect($tombstone->toArray())->not->toHaveKey('images');
 });
 
-it('serializes an attached gif as one object and hides the raw columns', function (): void {
+it('serializes an attached gif as one object without its raw attributes', function (): void {
     $commit = Commit::factory()->withGif()->create();
 
     $payload = $commit->toArray();
@@ -453,7 +453,15 @@ it('serializes an attached gif as one object and hides the raw columns', functio
         'username' => 'giphy',
         'width' => 480,
         'height' => 270,
-    ])->and(array_keys($payload))->each->not->toStartWith('gif_');
+    ])->and($payload)->toHaveKey('gif')
+        ->and(array_keys($payload))->each->not->toStartWith('gif_');
+});
+
+it('keeps its gif in a dedicated row', function (): void {
+    $commit = Commit::factory()->withGif()->create();
+
+    expect($commit->gif)->not->toBeNull()
+        ->and($commit->gif->commit->is($commit))->toBeTrue();
 });
 
 it('serializes the klipy provider too', function (): void {
@@ -477,15 +485,4 @@ it('leaves the gif out of a tombstone', function (): void {
     $commit->delete();
 
     expect($commit->fresh()?->toArray())->not->toHaveKey('gif');
-});
-
-it('serializes no gif when the provider is missing', function (): void {
-    $commit = Commit::factory()->create([
-        'gif_id' => 'xT9IgzoKnwFNmISR8I',
-        'gif_url' => 'https://media2.giphy.com/media/xT9IgzoKnwFNmISR8I/giphy.gif',
-        'gif_page_url' => 'https://giphy.com/gifs/xT9IgzoKnwFNmISR8I',
-        'gif_provider' => null,
-    ]);
-
-    expect($commit->toArray()['gif'])->toBeNull();
 });

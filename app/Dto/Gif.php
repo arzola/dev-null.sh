@@ -28,14 +28,14 @@ final readonly class Gif
     public function toColumns(): array
     {
         return [
-            'gif_provider' => $this->provider->value,
-            'gif_id' => $this->id,
-            'gif_url' => $this->url,
-            'gif_page_url' => $this->pageUrl,
-            'gif_title' => $this->title,
-            'gif_username' => $this->username,
-            'gif_width' => $this->width,
-            'gif_height' => $this->height,
+            'provider' => $this->provider->value,
+            'provider_gif_id' => $this->id,
+            'url' => $this->url,
+            'page_url' => $this->pageUrl,
+            'title' => $this->title,
+            'username' => $this->username,
+            'width' => $this->width,
+            'height' => $this->height,
         ];
     }
 }
