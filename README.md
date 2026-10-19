@@ -55,7 +55,7 @@ Twitch requires the embedding site's host, which is taken from `APP_URL`. To add
 
 ### GIFs
 
-GIF search is bring-your-own-key: connect one provider — [GIPHY](https://developers.giphy.com) or [KLIPY](https://klipy.com) — under Settings → Profile → GIFs and paste its API key. Searches run on your key and quota, so no paid key is shared by the instance; without one the picker is hidden. The browser talks to the provider directly and commits store only the GIF's URLs and metadata — nothing is downloaded or rehosted. Connect one provider at a time; choosing another replaces it.
+GIF search is bring-your-own-key and stays in your browser: connect one provider — [GIPHY](https://developers.giphy.com) or [KLIPY](https://klipy.com) — under Settings → Profile → GIFs and paste its API key. The key is stored only in this browser (`localStorage`), never sent to the server or saved in the database; each device needs its own, and clearing site data removes it. Searches run on your key and quota, so no paid key is shared by the instance; without one the picker is hidden. The browser talks to the provider directly and commits store only the GIF's URLs and metadata — nothing is downloaded or rehosted. Connect one provider at a time; choosing another replaces it.
 
 ### Verify installation
 

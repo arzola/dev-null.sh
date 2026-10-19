@@ -1,12 +1,13 @@
-import { router } from '@inertiajs/react';
 import { useState } from 'react';
-import {
-    destroy,
-    update,
-} from '@/actions/App/Http/Controllers/GifKeyController';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
+import { useGifProviderKey } from '@/hooks/use-gif-provider-key';
+import { useUser } from '@/hooks/use-user';
+import {
+    clearGifProviderKey,
+    writeGifProviderKey,
+} from '@/lib/gif-provider-key';
 import { gifProviderFor, gifProviders } from '@/lib/gif-providers';
 import type { GifProviderId } from '@/lib/gif-providers';
 
@@ -15,18 +16,14 @@ const helpHref: Record<GifProviderId, string> = {
     klipy: 'https://partner.klipy.com',
 };
 
-export function GifKeySetting({
-    gifConnected,
-    gifProvider,
-}: {
-    gifConnected: boolean;
-    gifProvider: GifProviderId | null;
-}) {
+export function GifKeySetting() {
+    const { user } = useUser();
+    const entry = useGifProviderKey(user.id);
     const [providerId, setProviderId] = useState<GifProviderId>(
-        gifProvider ?? 'giphy',
+        entry?.provider ?? 'giphy',
     );
     const [key, setKey] = useState('');
-    const [editing, setEditing] = useState(!gifConnected);
+    const [editing, setEditing] = useState(false);
     const [processing, setProcessing] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const provider = gifProviderFor(providerId);
@@ -61,40 +58,20 @@ export function GifKeySetting({
             return;
         }
 
-        router.put(
-            update.url(),
-            { provider: providerId, key: candidate },
-            {
-                preserveScroll: true,
-                onFinish: () => setProcessing(false),
-                onError: (errors) =>
-                    setError(
-                        errors.key ??
-                            errors.provider ??
-                            'Could not save the key.',
-                    ),
-                onSuccess: () => {
-                    setKey('');
-                    setError(null);
-                    setEditing(false);
-                },
-            },
-        );
+        writeGifProviderKey(user.id, {
+            provider: providerId,
+            key: candidate,
+        });
+        setKey('');
+        setError(null);
+        setEditing(false);
+        setProcessing(false);
     };
 
     const remove = () => {
-        if (processing) {
-            return;
-        }
-
+        clearGifProviderKey(user.id);
         setError(null);
-
-        router.delete(destroy.url(), {
-            preserveScroll: true,
-            onStart: () => setProcessing(true),
-            onFinish: () => setProcessing(false),
-            onError: () => setError('Could not remove the provider.'),
-        });
+        setEditing(false);
     };
 
     return (
@@ -120,21 +97,29 @@ export function GifKeySetting({
                 >
                     {provider.label}
                 </a>
-                , connect it here, and every composer gains a GIF picker. One
+                , save it here, and every composer gains a GIF picker. One
                 provider at a time; without a key the picker stays hidden.
             </p>
-            {gifConnected && !editing ? (
+            <p
+                className="mt-2 text-sm text-muted-foreground"
+                data-test="gif-storage-note"
+            >
+                Stored in this browser only — never sent to the server. Each
+                device needs its own key.
+            </p>
+            {entry !== null && !editing ? (
                 <div className="mt-4 flex flex-wrap items-center gap-3">
                     <p className="text-sm" data-test="gif-connected">
-                        Connected to{' '}
-                        {gifProviderFor(gifProvider ?? 'giphy').label}.
+                        Connected to {gifProviderFor(entry.provider).label}.
                     </p>
                     <Button
                         type="button"
                         variant="outline"
                         size="sm"
-                        disabled={processing}
-                        onClick={() => setEditing(true)}
+                        onClick={() => {
+                            setProviderId(entry.provider);
+                            setEditing(true);
+                        }}
                         data-test="change-provider-button"
                     >
                         Change provider
@@ -143,11 +128,9 @@ export function GifKeySetting({
                         type="button"
                         variant="ghost"
                         size="sm"
-                        disabled={processing}
                         onClick={remove}
                         data-test="gif-remove-button"
                     >
-                        {processing ? <Spinner /> : null}
                         Remove
                     </Button>
                 </div>
@@ -202,7 +185,7 @@ export function GifKeySetting({
                             data-test="gif-connect-button"
                         >
                             {processing ? <Spinner /> : null}
-                            {gifConnected ? 'Update' : 'Connect'}
+                            {entry !== null || editing ? 'Update' : 'Connect'}
                         </Button>
                     </div>
                 </div>

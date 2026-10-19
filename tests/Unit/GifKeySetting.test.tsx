@@ -42,26 +42,21 @@ vi.doMock('react', () => ({
     },
 }));
 
-const put = vi.fn();
-const destroy = vi.fn();
-
-vi.doMock('@inertiajs/react', async () => ({
-    ...(await vi.importActual('@inertiajs/react')),
-    router: { put, delete: destroy },
+vi.doMock('../../resources/js/hooks/use-user', () => ({
+    useUser: () => ({ user: { id: 'user-1' } }),
 }));
 
 const { GifKeySetting } = await import(
     '../../resources/js/components/gif-key-setting'
 );
+const { readGifProviderKey, writeGifProviderKey } = await import(
+    '../../resources/js/lib/gif-provider-key'
+);
 
 type Element = ReactElement<Record<string, unknown>>;
-type Props = {
-    gifConnected: boolean;
-    gifProvider: 'giphy' | 'klipy' | null;
-};
 
-const disconnected: Props = { gifConnected: false, gifProvider: null };
-const connected: Props = { gifConnected: true, gifProvider: 'giphy' };
+let store: Map<string, string>;
+const originalWindow = globalThis.window;
 
 function elements(node: ReactNode): Element[] {
     if (!React.isValidElement(node)) {
@@ -78,10 +73,10 @@ function elements(node: ReactNode): Element[] {
     ];
 }
 
-function render(props: Props): Element[] {
+function render(): Element[] {
     cursor = 0;
 
-    return elements(GifKeySetting(props));
+    return elements(GifKeySetting());
 }
 
 function field(fields: Element[], testId: string): Element {
@@ -107,81 +102,102 @@ function stubFetch(result: number | 'network'): void {
     );
 }
 
-function typeKey(fields: Element[], value: string, props: Props): Element[] {
+function typeKey(fields: Element[], value: string): Element[] {
     (field(fields, 'gif-key-input').props.onChange as (event: {
         target: { value: string };
-    }) => void)({
-        target: { value },
-    });
+    }) => void)({ target: { value } });
 
-    return render(props);
+    return render();
 }
 
 function selectProvider(fields: Element[], id: 'klipy'): Element[] {
     (field(fields, `provider-${id}`).props.onClick as () => void)();
 
-    return render(disconnected);
+    return render();
 }
 
 beforeEach(() => {
     state = [];
     cursor = 0;
+    store = new Map();
     vi.clearAllMocks();
     vi.unstubAllGlobals();
+
+    globalThis.window = {
+        localStorage: {
+            getItem: (key: string) => store.get(key) ?? null,
+            setItem: (key: string, value: string) => store.set(key, value),
+            removeItem: (key: string) => store.delete(key),
+            key: (index: number) => [...store.keys()][index] ?? null,
+            get length() {
+                return store.size;
+            },
+        },
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+    } as unknown as Window & typeof globalThis;
 });
 
-test('saves a valid key after giphy accepts it', async () => {
+test('shows the browser-only notice', () => {
+    const fields = render();
+
+    assert.ok(
+        fields.some(
+            (element) =>
+                typeof element.props.children === 'string' &&
+                element.props.children.includes('Stored in this browser only'),
+        ),
+    );
+});
+
+test('saves a valid key to local storage after giphy accepts it', async () => {
     stubFetch(200);
 
-    let fields = typeKey(render(disconnected), '  key-123  ', disconnected);
+    let fields = typeKey(render(), '  key-123  ');
     await (field(fields, 'gif-connect-button').props.onClick as () => Promise<void>)();
 
-    assert.equal(put.mock.calls.length, 1);
-    assert.equal(put.mock.calls[0]?.[0], '/settings/gif');
-    assert.deepEqual(put.mock.calls[0]?.[1], {
-        provider: 'giphy',
-        key: 'key-123',
-    });
+    assert.deepEqual(store.get('gif-provider:user-1'), JSON.stringify({ provider: 'giphy', key: 'key-123' }));
+    assert.deepEqual(readGifProviderKey('user-1'), { provider: 'giphy', key: 'key-123' });
 
-    const options = put.mock.calls[0]?.[2] as { onSuccess: () => void };
-    options.onSuccess();
-
-    fields = render(connected);
-    assert.ok(field(fields, 'gif-connected'));
+    fields = render();
+    assert.equal(
+        React.Children.toArray(
+            field(fields, 'gif-connected').props.children as ReactNode,
+        )
+            .map((child) => (typeof child === 'string' ? child : ''))
+            .join(''),
+        'Connected to GIPHY.',
+    );
 });
 
 test('saves the key against the selected provider', async () => {
     stubFetch(200);
 
-    let fields = selectProvider(render(disconnected), 'klipy');
-    fields = typeKey(fields, 'key-123', disconnected);
+    let fields = selectProvider(render(), 'klipy');
+    fields = typeKey(fields, 'key-123');
     await (field(fields, 'gif-connect-button').props.onClick as () => Promise<void>)();
 
-    assert.equal(put.mock.calls.length, 1);
-    assert.deepEqual(put.mock.calls[0]?.[1], {
-        provider: 'klipy',
-        key: 'key-123',
-    });
+    assert.deepEqual(readGifProviderKey('user-1'), { provider: 'klipy', key: 'key-123' });
 });
 
 test('saves a rate-limited key because the key itself is real', async () => {
     stubFetch(429);
 
-    const fields = typeKey(render(disconnected), 'key-123', disconnected);
+    const fields = typeKey(render(), 'key-123');
     await (field(fields, 'gif-connect-button').props.onClick as () => Promise<void>)();
 
-    assert.equal(put.mock.calls.length, 1);
+    assert.deepEqual(readGifProviderKey('user-1'), { provider: 'giphy', key: 'key-123' });
 });
 
 test('rejects a refused key without saving', async () => {
     stubFetch(401);
 
-    const fields = typeKey(render(disconnected), 'key-123', disconnected);
+    const fields = typeKey(render(), 'key-123');
     await (field(fields, 'gif-connect-button').props.onClick as () => Promise<void>)();
 
-    assert.equal(put.mock.calls.length, 0);
+    assert.equal(readGifProviderKey('user-1'), null);
     assert.equal(
-        field(render(disconnected), 'gif-key-error').props.children,
+        field(render(), 'gif-key-error').props.children,
         'That key was rejected by GIPHY.',
     );
 });
@@ -189,13 +205,13 @@ test('rejects a refused key without saving', async () => {
 test('names klipy when it refuses the key', async () => {
     stubFetch(401);
 
-    let fields = selectProvider(render(disconnected), 'klipy');
-    fields = typeKey(fields, 'key-123', disconnected);
+    let fields = selectProvider(render(), 'klipy');
+    fields = typeKey(fields, 'key-123');
     await (field(fields, 'gif-connect-button').props.onClick as () => Promise<void>)();
 
-    assert.equal(put.mock.calls.length, 0);
+    assert.equal(readGifProviderKey('user-1'), null);
     assert.equal(
-        field(render(disconnected), 'gif-key-error').props.children,
+        field(render(), 'gif-key-error').props.children,
         'That key was rejected by KLIPY.',
     );
 });
@@ -203,17 +219,15 @@ test('names klipy when it refuses the key', async () => {
 test('clears the error when another provider is selected', async () => {
     stubFetch(401);
 
-    const fields = typeKey(render(disconnected), 'key-123', disconnected);
+    const fields = typeKey(render(), 'key-123');
     await (field(fields, 'gif-connect-button').props.onClick as () => Promise<void>)();
 
-    assert.ok(field(render(disconnected), 'gif-key-error'));
+    assert.ok(field(render(), 'gif-key-error'));
 
-    (field(render(disconnected), 'provider-klipy').props.onClick as () => void)();
-
-    const switched = render(disconnected);
+    (field(render(), 'provider-klipy').props.onClick as () => void)();
 
     assert.equal(
-        switched.some(
+        render().some(
             (element) => element.props['data-test'] === 'gif-key-error',
         ),
         false,
@@ -223,97 +237,33 @@ test('clears the error when another provider is selected', async () => {
 test('does not save when the provider cannot be reached', async () => {
     stubFetch('network');
 
-    const fields = typeKey(render(disconnected), 'key-123', disconnected);
+    const fields = typeKey(render(), 'key-123');
     await (field(fields, 'gif-connect-button').props.onClick as () => Promise<void>)();
 
-    assert.equal(put.mock.calls.length, 0);
+    assert.equal(readGifProviderKey('user-1'), null);
     assert.equal(
-        field(render(disconnected), 'gif-key-error').props.children,
+        field(render(), 'gif-key-error').props.children,
         "Couldn't reach GIPHY to verify the key.",
     );
 });
 
-test('names klipy when it cannot be reached', async () => {
-    stubFetch('network');
-
-    let fields = selectProvider(render(disconnected), 'klipy');
-    fields = typeKey(fields, 'key-123', disconnected);
-    await (field(fields, 'gif-connect-button').props.onClick as () => Promise<void>)();
-
-    assert.equal(put.mock.calls.length, 0);
-    assert.equal(
-        field(render(disconnected), 'gif-key-error').props.children,
-        "Couldn't reach KLIPY to verify the key.",
-    );
-});
-
 test('disables connect until a key is typed', () => {
-    const fields = render(disconnected);
-
-    assert.equal(field(fields, 'gif-connect-button').props.disabled, true);
+    assert.equal(field(render(), 'gif-connect-button').props.disabled, true);
 });
 
 test('does not save a whitespace-only key', async () => {
     stubFetch(200);
 
-    const fields = typeKey(render(disconnected), '   ', disconnected);
+    const fields = typeKey(render(), '   ');
     await (field(fields, 'gif-connect-button').props.onClick as () => Promise<void>)();
 
-    assert.equal(put.mock.calls.length, 0);
+    assert.equal(readGifProviderKey('user-1'), null);
 });
 
-test('surfaces server validation errors', async () => {
-    stubFetch(200);
+test('shows the connected provider from local storage', () => {
+    writeGifProviderKey('user-1', { provider: 'klipy', key: 'k' });
 
-    const fields = typeKey(render(disconnected), 'key-123', disconnected);
-    await (field(fields, 'gif-connect-button').props.onClick as () => Promise<void>)();
-
-    const options = put.mock.calls[0]?.[2] as {
-        onError: (errors: Record<string, string>) => void;
-    };
-    options.onError({ key: 'The key field is required.' });
-
-    assert.equal(
-        field(render(disconnected), 'gif-key-error').props.children,
-        'The key field is required.',
-    );
-});
-
-test('removes a connected key', () => {
-    const fields = render(connected);
-
-    (field(fields, 'gif-remove-button').props.onClick as () => void)();
-
-    assert.equal(destroy.mock.calls.length, 1);
-    assert.equal(destroy.mock.calls[0]?.[0], '/settings/gif');
-});
-
-test('replaces the connected provider when another is chosen', async () => {
-    stubFetch(200);
-
-    let fields = render(connected);
-    (field(fields, 'change-provider-button').props.onClick as () => void)();
-
-    fields = render(connected);
-    (field(fields, 'provider-klipy').props.onClick as () => void)();
-
-    fields = render(connected);
-    (field(fields, 'gif-key-input').props.onChange as (event: {
-        target: { value: string };
-    }) => void)({ target: { value: 'klipy-key' } });
-
-    fields = render(connected);
-    await (field(fields, 'gif-connect-button').props.onClick as () => Promise<void>)();
-
-    assert.deepEqual(put.mock.calls[0]?.[1], {
-        provider: 'klipy',
-        key: 'klipy-key',
-    });
-
-    const options = put.mock.calls[0]?.[2] as { onSuccess: () => void };
-    options.onSuccess();
-
-    fields = render({ gifConnected: true, gifProvider: 'klipy' });
+    const fields = render();
 
     assert.equal(
         React.Children.toArray(
@@ -323,7 +273,36 @@ test('replaces the connected provider when another is chosen', async () => {
             .join(''),
         'Connected to KLIPY.',
     );
+});
 
-    fields = render(disconnected);
-    assert.equal(field(fields, 'gif-key-input').props.value, '');
+test('removes the stored key', () => {
+    writeGifProviderKey('user-1', { provider: 'giphy', key: 'k' });
+
+    const fields = render();
+    (field(fields, 'gif-remove-button').props.onClick as () => void)();
+
+    assert.equal(readGifProviderKey('user-1'), null);
+    assert.ok(field(render(), 'gif-key-input'));
+});
+
+test('replaces the connected provider when another is chosen', async () => {
+    stubFetch(200);
+
+    writeGifProviderKey('user-1', { provider: 'giphy', key: 'old' });
+
+    let fields = render();
+    (field(fields, 'change-provider-button').props.onClick as () => void)();
+
+    fields = render();
+    (field(fields, 'provider-klipy').props.onClick as () => void)();
+
+    fields = render();
+    (field(fields, 'gif-key-input').props.onChange as (event: {
+        target: { value: string };
+    }) => void)({ target: { value: 'klipy-key' } });
+
+    fields = render();
+    await (field(fields, 'gif-connect-button').props.onClick as () => Promise<void>)();
+
+    assert.deepEqual(readGifProviderKey('user-1'), { provider: 'klipy', key: 'klipy-key' });
 });
