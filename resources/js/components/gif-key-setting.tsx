@@ -127,9 +127,8 @@ export function GifKeySetting() {
                     className="underline underline-offset-4"
                 >
                     {provider.label}
-                </a>
-                , save it here, and every composer gains a GIF picker. Without a
-                key the picker stays hidden.
+                </a>{' '}
+                and save it here. Without a key, the picker stays hidden.
             </p>
             <p
                 className="mt-2 text-sm text-muted-foreground"
