@@ -56,7 +56,6 @@ const { readGifProviderKey, writeGifProviderKey } = await import(
 type Element = ReactElement<Record<string, unknown>>;
 
 let store: Map<string, string>;
-const originalWindow = globalThis.window;
 
 function elements(node: ReactNode): Element[] {
     if (!React.isValidElement(node)) {
@@ -139,14 +138,15 @@ beforeEach(() => {
 });
 
 test('shows the browser-only notice', () => {
-    const fields = render();
+    const note = field(render(), 'gif-storage-note');
 
-    assert.ok(
-        fields.some(
-            (element) =>
-                typeof element.props.children === 'string' &&
-                element.props.children.includes('Stored in this browser only'),
-        ),
+    assert.equal(
+        React.Children.toArray(note.props.children as ReactNode)
+            .map((child) => (typeof child === 'string' ? child : ''))
+            .join('')
+            .replace(/\s+/g, ' ')
+            .trim(),
+        'Stored in this browser only — never sent to the server. Each device needs its own key.',
     );
 });
 
@@ -273,6 +273,22 @@ test('shows the connected provider from local storage', () => {
             .join(''),
         'Connected to KLIPY.',
     );
+});
+
+test('never echoes the stored key in the connected view', () => {
+    writeGifProviderKey('user-1', { provider: 'giphy', key: 'super-secret-key' });
+
+    const fields = render();
+    assert.ok(field(fields, 'gif-connected'));
+
+    const text = fields
+        .flatMap((element) =>
+            React.Children.toArray(element.props.children as ReactNode),
+        )
+        .map((child) => (typeof child === 'string' ? child : ''))
+        .join('');
+
+    assert.equal(text.includes('super-secret-key'), false);
 });
 
 test('removes the stored key', () => {
