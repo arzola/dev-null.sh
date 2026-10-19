@@ -35,6 +35,10 @@ type Suggestions = {
 const debounce = 120;
 const cache = new Map<string, User[]>();
 
+export function clearMentionSuggestionsCache(): void {
+    cache.clear();
+}
+
 async function fetchSuggestions(
     query: string,
     org: string | undefined,
