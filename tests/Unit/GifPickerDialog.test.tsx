@@ -39,27 +39,33 @@ vi.doMock('@inertiajs/react', async () => ({
     ...(await vi.importActual('@inertiajs/react')),
 }));
 
+const result = {
+    id: 'one',
+    url: 'https://static.klipy.com/ii/one.gif',
+    pageUrl: 'https://klipy.com/gifs/one',
+    title: 'One',
+    username: null,
+    width: 100,
+    height: 100,
+    previewUrl: 'https://static.klipy.com/ii/one-preview.gif',
+};
+
+const search = vi.fn<GifProvider['search']>(async () => ({
+    results: [result],
+    nextCursor: null,
+}));
+const trending = vi.fn<GifProvider['trending']>(async () => ({
+    results: [result],
+    nextCursor: null,
+}));
+
 const provider: GifProvider = {
     id: 'klipy',
-    label: 'KLIPY',
-    searchPlaceholder: 'Search KLIPY',
-    attribution: { label: 'Powered by KLIPY', href: 'https://klipy.com' },
-    search: vi.fn(async () => ({
-        results: [
-            {
-                id: 'one',
-                url: 'https://static.klipy.com/ii/one.gif',
-                pageUrl: 'https://klipy.com/gifs/one',
-                title: 'One',
-                username: null,
-                width: 100,
-                height: 100,
-                previewUrl: 'https://static.klipy.com/ii/one-preview.gif',
-            },
-        ],
-        nextCursor: null,
-    })),
-    trending: vi.fn(async () => ({ results: [], nextCursor: null })),
+    label: 'FAUX',
+    searchPlaceholder: 'Find FAUX GIFs',
+    attribution: { label: 'Powered by FAUX', href: 'https://faux.example' },
+    search,
+    trending,
     validateKey: vi.fn(async () => 'valid' as const),
 };
 
@@ -84,12 +90,22 @@ function elements(node: ReactNode): Element[] {
     ];
 }
 
-function render(open = true): Element[] {
+function render(open = true, onPick = vi.fn()): Element[] {
     cursor = 0;
 
     return elements(
-        GifPickerDialog({ provider, apiKey: 'k', open, onOpenChange: vi.fn(), onPick: vi.fn() }),
+        GifPickerDialog({
+            provider,
+            apiKey: 'k',
+            open,
+            onOpenChange: vi.fn(),
+            onPick,
+        }),
     );
+}
+
+function settle(): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, 0));
 }
 
 function field(fields: Element[], testId: string): Element {
@@ -106,17 +122,29 @@ beforeEach(() => {
     state = [];
     cursor = 0;
     vi.clearAllMocks();
+    search.mockImplementation(async () => ({
+        results: [result],
+        nextCursor: null,
+    }));
+    trending.mockImplementation(async () => ({
+        results: [result],
+        nextCursor: null,
+    }));
 });
 
 test('uses the provider placeholder and attribution', () => {
     const fields = render(false);
 
-    assert.equal(field(fields, 'gif-search-input').props.placeholder, 'Search KLIPY');
+    assert.equal(
+        field(fields, 'gif-search-input').props.placeholder,
+        'Find FAUX GIFs',
+    );
+    assert.ok(
+        fields.some((element) => element.props.children === 'Powered by FAUX'),
+    );
     assert.ok(
         fields.some(
-            (element) =>
-                element.props.children === 'Powered by KLIPY' ||
-                element.props.href === 'https://klipy.com',
+            (element) => element.props.href === 'https://faux.example',
         ),
     );
 });
@@ -124,10 +152,74 @@ test('uses the provider placeholder and attribution', () => {
 test('searches through the injected provider', async () => {
     render();
     await vi.waitFor(() => {
-        assert.equal((provider.trending as ReturnType<typeof vi.fn>).mock.calls.length, 1);
+        assert.equal(trending.mock.calls.length, 1);
     });
-    assert.equal(
-        (provider.search as ReturnType<typeof vi.fn>).mock.calls.length,
-        0,
+    assert.equal(search.mock.calls.length, 0);
+});
+
+test('searches with the typed query', async () => {
+    const fields = render();
+
+    (
+        field(fields, 'gif-search-input').props.onChange as (event: {
+            target: { value: string };
+        }) => void
+    )({ target: { value: 'cats' } });
+
+    render();
+
+    await vi.waitFor(() => {
+        assert.equal(search.mock.calls.length, 1);
+    });
+    assert.deepEqual(search.mock.calls[0].slice(0, 2), ['k', 'cats']);
+});
+
+test('picks the clicked result through the injected provider', async () => {
+    const onPick = vi.fn();
+    render(true, onPick);
+    await settle();
+
+    const fields = render(true, onPick);
+    const button = elements(field(fields, 'gif-results')).find(
+        (element) => element.type === 'button',
     );
+
+    assert.ok(button);
+    (button.props.onClick as () => void)();
+
+    assert.deepEqual(onPick.mock.calls[0]?.[0], {
+        ...result,
+        provider: 'klipy',
+    });
+});
+
+test('loads more with the cursor from the previous page', async () => {
+    trending.mockImplementation(
+        async (
+            _key: string,
+            options: { cursor: string | null },
+        ) =>
+            options.cursor === null
+                ? { results: [result], nextCursor: 'next-page' }
+                : {
+                      results: [{ ...result, id: 'two' }],
+                      nextCursor: null,
+                  },
+    );
+
+    render();
+    await settle();
+
+    const fields = render();
+    const loadMore = fields.find(
+        (element) => element.props.children === 'Load more',
+    );
+
+    assert.ok(loadMore);
+    (loadMore.props.onClick as () => void)();
+
+    assert.deepEqual(trending.mock.calls.at(-1), [
+        'k',
+        { cursor: 'next-page' },
+    ]);
 });

@@ -53,7 +53,7 @@ export function imageErrorFrom(
             name === 'images' ||
             name.startsWith('images.') ||
             name.startsWith('image_descriptions') ||
-            name.startsWith('giphy_'),
+            name.startsWith('gif_'),
     );
 
     return key ? errors[key] : undefined;

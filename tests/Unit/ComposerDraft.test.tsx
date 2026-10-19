@@ -94,6 +94,8 @@ vi.doMock('../../resources/js/hooks/use-stash', () => ({
 
 const { CommitComposer } =
     await import('../../resources/js/components/commit-composer');
+const { default: InputError } =
+    await import('../../resources/js/components/input-error');
 const { IssueCommandBadge, IssueCommandHint, IssueCommandSuggestions } =
     await import('../../resources/js/components/issue-command');
 const { ImageDropOverlay, ImagePickerButton, ImagePickerPreviews } =
@@ -130,11 +132,11 @@ function elements(node: ReactNode): Element[] {
     ];
 }
 
-function render() {
+function render(errors: Record<string, string> = {}) {
     cursor = 0;
     const form = CommitComposer({});
     const fields = elements(
-        form.props.children({ processing: false, errors: {} }),
+        form.props.children({ processing: false, errors }),
     );
     return { form, fields };
 }
@@ -198,6 +200,27 @@ test('preserves restored images and link cards and allows scheduling them', () =
     } finally {
         vi.unstubAllGlobals();
     }
+});
+
+test('surfaces gif validation errors and ignores unrelated ones', () => {
+    const gifError = render({ gif_url: 'The GIF could not be attached.' });
+    assert.ok(
+        gifError.fields.some(
+            (element) =>
+                element.type === InputError &&
+                element.props.message === 'The GIF could not be attached.',
+        ),
+    );
+
+    const unrelated = render({ unrelated_field: 'Not an attachment error.' });
+    assert.equal(
+        unrelated.fields.some(
+            (element) =>
+                element.type === InputError &&
+                element.props.message === 'Not an attachment error.',
+        ),
+        false,
+    );
 });
 
 test('removing restored images enables polls and successful posting resets the poll', () => {

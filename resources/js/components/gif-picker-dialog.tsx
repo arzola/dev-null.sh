@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
@@ -36,8 +36,11 @@ export function GifPickerDialog({
     const [status, setStatus] = useState<Status>('loading');
     const [isLoadingMore, setIsLoadingMore] = useState(false);
     const [reloads, setReloads] = useState(0);
+    const generation = useRef(0);
 
     useEffect(() => {
+        const currentGeneration = ++generation.current;
+
         if (!open) {
             return;
         }
@@ -45,6 +48,7 @@ export function GifPickerDialog({
         const controller = new AbortController();
         const timeout = setTimeout(
             () => {
+                setIsLoadingMore(false);
                 setStatus('loading');
                 const trimmed = query.trim();
                 const request =
@@ -60,6 +64,13 @@ export function GifPickerDialog({
 
                 request
                     .then((page) => {
+                        if (
+                            controller.signal.aborted ||
+                            currentGeneration !== generation.current
+                        ) {
+                            return;
+                        }
+
                         setResults(page.results);
                         setNextCursor(page.nextCursor);
                         setStatus('ready');
@@ -86,6 +97,7 @@ export function GifPickerDialog({
     }, [open, query, apiKey, reloads, provider]);
 
     const loadMore = () => {
+        const currentGeneration = generation.current;
         setIsLoadingMore(true);
         const trimmed = query.trim();
         const request =
@@ -95,11 +107,19 @@ export function GifPickerDialog({
 
         request
             .then((page) => {
+                if (currentGeneration !== generation.current) {
+                    return;
+                }
+
                 setResults((current) => [...current, ...page.results]);
                 setNextCursor(page.nextCursor);
             })
             .catch(() => undefined)
-            .finally(() => setIsLoadingMore(false));
+            .finally(() => {
+                if (currentGeneration === generation.current) {
+                    setIsLoadingMore(false);
+                }
+            });
     };
 
     const pick = (result: GifResult) => {
