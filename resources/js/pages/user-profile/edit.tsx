@@ -4,7 +4,7 @@ import ExportController from '@/actions/App/Http/Controllers/ExportController';
 import UserProfileController from '@/actions/App/Http/Controllers/UserProfileController';
 import ActivityGraphEmbed from '@/components/activity-graph-embed';
 import DeleteUser from '@/components/delete-user';
-import { GiphyKeySetting } from '@/components/giphy-key-setting';
+import { GifKeySetting } from '@/components/gif-key-setting';
 import { GitHubProfile } from '@/components/github-profile';
 import Heading from '@/components/heading';
 import LanePicker from '@/components/lane-picker';
@@ -25,14 +25,16 @@ export default function Edit({
     preferredLane,
     automaticLane,
     githubSyncedAt,
-    giphyConnected,
+    gifConnected,
+    gifProvider,
     activityGraphUrl,
     profileUrl,
 }: {
     preferredLane: Lane | null;
     automaticLane: number;
     githubSyncedAt: string | null;
-    giphyConnected: boolean;
+    gifConnected: boolean;
+    gifProvider: 'giphy' | 'klipy' | null;
     activityGraphUrl: string;
     profileUrl: string;
 }) {
@@ -114,7 +116,10 @@ export default function Edit({
 
             <PasteisModeSetting />
 
-            <GiphyKeySetting giphyConnected={giphyConnected} />
+            <GifKeySetting
+                gifConnected={gifConnected}
+                gifProvider={gifProvider}
+            />
 
             <RemotesSetting />
 

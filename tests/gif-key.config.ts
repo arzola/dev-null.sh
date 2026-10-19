@@ -8,6 +8,6 @@ export default defineConfig({
         },
     },
     test: {
-        include: ['tests/Unit/GiphyKeySetting.test.tsx'],
+        include: ['tests/Unit/GifKeySetting.test.tsx'],
     },
 });
