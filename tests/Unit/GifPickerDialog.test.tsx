@@ -45,7 +45,7 @@ vi.doMock('react', () => ({
 
 vi.doMock('@inertiajs/react', async () => ({
     ...(await vi.importActual('@inertiajs/react')),
-    usePage: () => ({ props: { gif: null } }),
+    usePage: () => ({ props: { auth: { user: { id: 'user-1' } } } }),
 }));
 
 const result = {
@@ -84,6 +84,11 @@ const { GifPickerDialog } = await import(
 const { GifPickerButton } = await import(
     '../../resources/js/components/gif-picker-button'
 );
+const { writeGifProviderKey } = await import(
+    '../../resources/js/lib/gif-provider-key'
+);
+
+let store: Map<string, string>;
 
 type Element = ReactElement<Record<string, unknown>>;
 
@@ -133,6 +138,20 @@ function field(fields: Element[], testId: string): Element {
 beforeEach(() => {
     state = [];
     cursor = 0;
+    store = new Map();
+    globalThis.window = {
+        localStorage: {
+            getItem: (key: string) => store.get(key) ?? null,
+            setItem: (key: string, value: string) => store.set(key, value),
+            removeItem: (key: string) => store.delete(key),
+            key: (index: number) => [...store.keys()][index] ?? null,
+            get length() {
+                return store.size;
+            },
+        },
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+    } as unknown as Window & typeof globalThis;
     vi.clearAllMocks();
     search.mockImplementation(async () => ({
         results: [result],
@@ -237,6 +256,24 @@ test('loads more with the cursor from the previous page', async () => {
     assert.ok(options?.signal instanceof AbortSignal);
 });
 
-test('renders nothing when no gif provider is connected', () => {
+test('renders nothing when no gif provider key is stored', () => {
     assert.equal(GifPickerButton({ hasGif: false, onPick: vi.fn() }), null);
+});
+
+test('opens the picker with the stored provider and key', () => {
+    writeGifProviderKey('user-1', { provider: 'klipy', key: 'stored-key' });
+
+    const fields = elements(
+        GifPickerButton({ hasGif: false, onPick: vi.fn() }) as ReactElement,
+    );
+    const dialog = fields.find(
+        (element) => element.props.apiKey === 'stored-key',
+    );
+
+    assert.ok(dialog);
+    assert.equal(
+        (dialog.props.provider as GifProvider | undefined)?.id,
+        'klipy',
+    );
+    assert.equal(dialog.props.open, false);
 });

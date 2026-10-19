@@ -3,11 +3,12 @@ import { ImagePlay } from 'lucide-react';
 import { useState } from 'react';
 import { GifPickerDialog } from '@/components/gif-picker-dialog';
 import { Button } from '@/components/ui/button';
+import { useGifProviderKey } from '@/hooks/use-gif-provider-key';
 import { gifProviderFor } from '@/lib/gif-providers';
 import type { GifAttachment } from '@/lib/gif-providers';
 import { cn } from '@/lib/utils';
 
-/** Invisible until the signed-in user connects a GIF provider in settings. */
+/** Invisible until the signed-in user stores a GIF provider key in settings. */
 export function GifPickerButton({
     disabled,
     hasGif,
@@ -19,10 +20,11 @@ export function GifPickerButton({
     onPick: (gif: GifAttachment) => void;
     className?: string;
 }) {
-    const { gif } = usePage().props;
+    const { auth } = usePage().props;
+    const entry = useGifProviderKey(auth.user?.id ?? null);
     const [open, setOpen] = useState(false);
 
-    if (gif === null) {
+    if (entry === null) {
         return null;
     }
 
@@ -42,8 +44,8 @@ export function GifPickerButton({
                 <ImagePlay className="size-5" />
             </Button>
             <GifPickerDialog
-                provider={gifProviderFor(gif.provider)}
-                apiKey={gif.key}
+                provider={gifProviderFor(entry.provider)}
+                apiKey={entry.key}
                 open={open}
                 onOpenChange={setOpen}
                 onPick={onPick}
