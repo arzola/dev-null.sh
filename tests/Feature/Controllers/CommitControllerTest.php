@@ -935,7 +935,7 @@ it('previews the images of a commit before its drawn card', function (): void {
 
 it('uses the attached gif as an open graph image', function (): void {
     $user = User::factory()->create(['username' => 'octocat', 'name' => 'The Octocat']);
-    $commit = Commit::factory()->for($user)->withGiphy()->create(['body' => 'Deal with it']);
+    $commit = Commit::factory()->for($user)->withGif()->create(['body' => 'Deal with it']);
 
     $content = (string) $this->get(route('commit.show', [$user, $commit]))->assertOk()->getContent();
 
@@ -1607,7 +1607,7 @@ it('may quote a commit with a gif attached', function (): void {
 });
 
 it('shows the gif in the commit payload', function (): void {
-    $commit = Commit::factory()->withGiphy()->create();
+    $commit = Commit::factory()->withGif()->create();
 
     $this->actingAs($commit->user)
         ->get(route('commit.show', [$commit->user, $commit]))
