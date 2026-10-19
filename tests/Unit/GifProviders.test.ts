@@ -73,8 +73,46 @@ test('giphy builds search and trending urls with the g rating', async () => {
     const trendingCalls = stubFetch(giphyPayload);
     try {
         await giphy.trending('key-123', { cursor: '24' });
+        const trendingUrl = new URL(trendingCalls[0]!);
         assert.ok(trendingCalls[0]!.includes('/v1/gifs/trending?'));
-        assert.ok(trendingCalls[0]!.includes('offset=24'));
+        assert.equal(trendingUrl.searchParams.get('offset'), '24');
+        assert.equal(trendingUrl.searchParams.get('rating'), 'g');
+    } finally {
+        restoreFetch();
+    }
+});
+
+test('giphy derives the next cursor from a full page and passes it back as offset', async () => {
+    const fullPage = {
+        data: Array.from({ length: 24 }, (_, index) => ({
+            id: `gif-${index}`,
+            title: `GIF ${index}`,
+            username: 'giphy',
+            url: `https://giphy.com/gifs/gif-${index}`,
+            images: {
+                downsized_medium: {
+                    url: `https://media2.giphy.com/media/gif-${index}/giphy.gif`,
+                    width: '480',
+                    height: '270',
+                },
+            },
+        })),
+    };
+
+    stubFetch(fullPage);
+    try {
+        const page = await giphy.search('key-123', 'deal', { cursor: null });
+        assert.equal(page.nextCursor, '24');
+    } finally {
+        restoreFetch();
+    }
+
+    const nextCalls = stubFetch(fullPage);
+    try {
+        const page = await giphy.search('key-123', 'deal', { cursor: '24' });
+        const url = new URL(nextCalls[0]!);
+        assert.equal(url.searchParams.get('offset'), '24');
+        assert.equal(page.nextCursor, '48');
     } finally {
         restoreFetch();
     }
@@ -97,11 +135,69 @@ test('klipy builds tenor-compatible urls and maps the next cursor', async () => 
         restoreFetch();
     }
 
+    const nextCalls = stubFetch(klipyPayload);
+    try {
+        await klipy.search('k-key', 'hello', { cursor: 'cursor-2' });
+        const url = new URL(nextCalls[0]!);
+        assert.equal(url.searchParams.get('pos'), 'cursor-2');
+    } finally {
+        restoreFetch();
+    }
+
     const trendingCalls = stubFetch({ results: [], next: '' });
     try {
-        const page = await klipy.trending('k-key', { cursor: null });
+        const page = await klipy.trending('k-key', { cursor: 'cursor-2' });
+        const url = new URL(trendingCalls[0]!);
         assert.ok(trendingCalls[0]!.includes('/v2/featured?'));
+        assert.equal(url.searchParams.get('contentfilter'), 'high');
+        assert.equal(url.searchParams.get('pos'), 'cursor-2');
         assert.equal(page.nextCursor, null);
+    } finally {
+        restoreFetch();
+    }
+});
+
+test('adapters drop items without a usable rendition', async () => {
+    stubFetch({
+        data: [{
+            id: 'no-renditions',
+            title: 'Nothing',
+            username: '',
+            url: 'https://giphy.com/gifs/nothing',
+            images: {},
+        }],
+    });
+    try {
+        const page = await giphy.search('key-123', 'nothing', { cursor: null });
+        assert.deepEqual(page.results, []);
+    } finally {
+        restoreFetch();
+    }
+
+    stubFetch({
+        results: [{
+            id: 'no-gif',
+            title: 'Nothing',
+            itemurl: 'https://klipy.com/gifs/no-gif',
+            media_formats: {
+                tinygif: { url: 'https://static.klipy.com/ii/no-gif.gif', dims: [220, 220] },
+            },
+        }],
+        next: '',
+    });
+    try {
+        const page = await klipy.search('k-key', 'nothing', { cursor: null });
+        assert.deepEqual(page.results, []);
+    } finally {
+        restoreFetch();
+    }
+});
+
+test('adapters reject non-429 http failures', async () => {
+    stubFetch({}, 500);
+    try {
+        await assert.rejects(() => giphy.trending('k', { cursor: null }), /request failed/);
+        await assert.rejects(() => klipy.trending('k', { cursor: null }), /request failed/);
     } finally {
         restoreFetch();
     }
