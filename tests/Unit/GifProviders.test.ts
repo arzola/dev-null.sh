@@ -193,6 +193,204 @@ test('adapters drop items without a usable rendition', async () => {
     }
 });
 
+const rendition = (slug: string) => ({
+    url: `https://media2.giphy.com/media/${slug}.gif`,
+    width: '480',
+    height: '270',
+});
+
+test('giphy falls back across stored renditions and previews', async () => {
+    const cases: {
+        name: string;
+        images: Record<string, ReturnType<typeof rendition>>;
+        stored: string;
+        preview: string;
+    }[] = [
+        {
+            name: 'stored downsized',
+            images: { downsized: rendition('downsized') },
+            stored: 'https://media2.giphy.com/media/downsized.gif',
+            preview: 'https://media2.giphy.com/media/downsized.gif',
+        },
+        {
+            name: 'stored original',
+            images: { original: rendition('original') },
+            stored: 'https://media2.giphy.com/media/original.gif',
+            preview: 'https://media2.giphy.com/media/original.gif',
+        },
+        {
+            name: 'fixed height small preview',
+            images: {
+                fixed_height_small: rendition('small'),
+                downsized: rendition('downsized'),
+                downsized_medium: rendition('downsized-medium'),
+                original: rendition('original'),
+            },
+            stored: 'https://media2.giphy.com/media/downsized-medium.gif',
+            preview: 'https://media2.giphy.com/media/small.gif',
+        },
+        {
+            name: 'downsized preview',
+            images: {
+                downsized: rendition('downsized'),
+                downsized_medium: rendition('downsized-medium'),
+                original: rendition('original'),
+            },
+            stored: 'https://media2.giphy.com/media/downsized-medium.gif',
+            preview: 'https://media2.giphy.com/media/downsized.gif',
+        },
+        {
+            name: 'downsized medium preview',
+            images: {
+                downsized_medium: rendition('downsized-medium'),
+                original: rendition('original'),
+            },
+            stored: 'https://media2.giphy.com/media/downsized-medium.gif',
+            preview: 'https://media2.giphy.com/media/downsized-medium.gif',
+        },
+        {
+            name: 'original preview',
+            images: { original: rendition('original') },
+            stored: 'https://media2.giphy.com/media/original.gif',
+            preview: 'https://media2.giphy.com/media/original.gif',
+        },
+    ];
+
+    for (const { name, images, stored, preview } of cases) {
+        stubFetch({
+            data: [{
+                id: 'gif',
+                title: 'GIF',
+                username: 'giphy',
+                url: 'https://giphy.com/gifs/gif',
+                images,
+            }],
+        });
+
+        try {
+            const page = await giphy.search('key-123', 'gif', {
+                cursor: null,
+            });
+
+            assert.equal(page.results[0]?.url, stored, name);
+            assert.equal(page.results[0]?.previewUrl, preview, name);
+        } finally {
+            restoreFetch();
+        }
+    }
+});
+
+test('giphy normalizes empty titles and usernames to null', async () => {
+    stubFetch({
+        data: [{
+            id: 'gif',
+            title: '',
+            username: '',
+            url: 'https://giphy.com/gifs/gif',
+            images: { original: rendition('original') },
+        }],
+    });
+
+    try {
+        const page = await giphy.search('key-123', 'gif', { cursor: null });
+
+        assert.equal(page.results[0]?.title, null);
+        assert.equal(page.results[0]?.username, null);
+    } finally {
+        restoreFetch();
+    }
+});
+
+test('klipy falls back to the content description for its title', async () => {
+    const cases: {
+        name: string;
+        title: string | undefined;
+        description: string | undefined;
+        expected: string | null;
+    }[] = [
+        {
+            name: 'empty title',
+            title: '',
+            description: 'hello greeting',
+            expected: 'hello greeting',
+        },
+        {
+            name: 'absent title',
+            title: undefined,
+            description: 'hello greeting',
+            expected: 'hello greeting',
+        },
+        {
+            name: 'empty fallback',
+            title: '',
+            description: '',
+            expected: null,
+        },
+        {
+            name: 'absent both',
+            title: undefined,
+            description: undefined,
+            expected: null,
+        },
+    ];
+
+    for (const { name, title, description, expected } of cases) {
+        stubFetch({
+            results: [{
+                id: 'hello-hi-662',
+                title,
+                content_description: description,
+                itemurl: 'https://klipy.com/gifs/hello-hi-662',
+                media_formats: {
+                    gif: {
+                        url: 'https://static.klipy.com/ii/8GCrVAB7.gif',
+                        dims: [498, 498],
+                    },
+                },
+            }],
+            next: '',
+        });
+
+        try {
+            const page = await klipy.search('k-key', 'hello', {
+                cursor: null,
+            });
+
+            assert.equal(page.results[0]?.title, expected, name);
+        } finally {
+            restoreFetch();
+        }
+    }
+});
+
+test('klipy reuses the gif url when the tiny preview is missing', async () => {
+    stubFetch({
+        results: [{
+            id: 'hello-hi-662',
+            title: 'Hello',
+            itemurl: 'https://klipy.com/gifs/hello-hi-662',
+            media_formats: {
+                gif: {
+                    url: 'https://static.klipy.com/ii/8GCrVAB7.gif',
+                    dims: [498, 498],
+                },
+            },
+        }],
+        next: '',
+    });
+
+    try {
+        const page = await klipy.search('k-key', 'hello', { cursor: null });
+
+        assert.equal(
+            page.results[0]?.previewUrl,
+            'https://static.klipy.com/ii/8GCrVAB7.gif',
+        );
+    } finally {
+        restoreFetch();
+    }
+});
+
 test('adapters reject non-429 http failures', async () => {
     stubFetch({}, 500);
     try {

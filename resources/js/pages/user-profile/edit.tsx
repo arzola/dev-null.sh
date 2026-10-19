@@ -17,6 +17,7 @@ import { useNow } from '@/hooks/use-now';
 import { useUser } from '@/hooks/use-user';
 import AppLayout from '@/layouts/app-layout';
 import SettingsLayout from '@/layouts/settings/layout';
+import type { GifProviderId } from '@/lib/gif-providers';
 import { formatFullDateTime, formatSyncedAgo } from '@/lib/utils';
 import { show } from '@/routes/user';
 import type { Lane } from '@/types';
@@ -34,7 +35,7 @@ export default function Edit({
     automaticLane: number;
     githubSyncedAt: string | null;
     gifConnected: boolean;
-    gifProvider: 'giphy' | 'klipy' | null;
+    gifProvider: GifProviderId | null;
     activityGraphUrl: string;
     profileUrl: string;
 }) {

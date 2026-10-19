@@ -1,3 +1,4 @@
+import type { GifProviderId } from '@/lib/gif-providers';
 import type { Auth, SuggestedUser } from '@/types/auth';
 import type { Commit } from '@/types/commit';
 import type { CommittedFlash, DeletedFlash, FlashToast } from '@/types/ui';
@@ -18,7 +19,7 @@ declare module '@inertiajs/core' {
             hasUnmoderatedCommits: boolean;
             sidebarOpen: boolean;
             showsWhoToFollow: boolean;
-            gif: { provider: 'giphy' | 'klipy'; key: string } | null;
+            gif: { provider: GifProviderId; key: string } | null;
             dimsLanes: boolean;
             repliesPerPage: number;
             suggestedUsers?: SuggestedUser[];

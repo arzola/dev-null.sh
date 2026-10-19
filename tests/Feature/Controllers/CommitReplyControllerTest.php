@@ -989,11 +989,23 @@ it('accepts a klipy gif reply', function (): void {
     expect($user->commits()->sole()->gif_provider->value)->toBe('klipy');
 });
 
-it('rejects a non-string gif provider without erroring', function (): void {
+it('rejects invalid providers', function (array $payload): void {
     $user = User::factory()->create();
     $parent = Commit::factory()->create();
 
-    $response = $this->actingAs($user)->postJson(route('commit-reply.store', $parent), [
+    $response = $this->actingAs($user)->postJson(route('commit-reply.store', $parent), $payload);
+
+    $response->assertUnprocessable()->assertJsonValidationErrors('gif_provider');
+})->with([
+    'missing provider' => [fn (): array => [
+        'body' => 'Reply without a provider',
+        'gif_id' => 'abc123',
+        'gif_url' => 'https://media2.giphy.com/media/abc123/giphy.gif',
+        'gif_page_url' => 'https://giphy.com/gifs/abc123',
+        'gif_width' => 480,
+        'gif_height' => 270,
+    ]],
+    'non-string provider' => [fn (): array => [
         'body' => 'Reply with an array provider',
         'gif_provider' => ['giphy'],
         'gif_id' => 'abc123',
@@ -1001,10 +1013,17 @@ it('rejects a non-string gif provider without erroring', function (): void {
         'gif_page_url' => 'https://giphy.com/gifs/abc123',
         'gif_width' => 480,
         'gif_height' => 270,
-    ]);
-
-    $response->assertUnprocessable()->assertJsonValidationErrors('gif_provider');
-});
+    ]],
+    'unknown provider string' => [fn (): array => [
+        'body' => 'Reply with an unknown provider',
+        'gif_provider' => 'other',
+        'gif_id' => 'abc123',
+        'gif_url' => 'https://media2.giphy.com/media/abc123/giphy.gif',
+        'gif_page_url' => 'https://giphy.com/gifs/abc123',
+        'gif_width' => 480,
+        'gif_height' => 270,
+    ]],
+]);
 
 it('rejects a reply gif url from another provider', function (): void {
     $user = User::factory()->create();

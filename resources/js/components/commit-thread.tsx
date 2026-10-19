@@ -67,6 +67,7 @@ import { signIn } from '@/lib/auth';
 import { maxBodyLength, minBodyLength } from '@/lib/commit';
 import { commitStateKey } from '@/lib/commit-state';
 import { gifFormFields } from '@/lib/gif-providers';
+import type { GifProviderId } from '@/lib/gif-providers';
 import { hasModKey } from '@/lib/keyboard';
 import {
     characterCount,
@@ -1145,7 +1146,7 @@ function ReplyComposer({
             images: File[];
             image_descriptions: string[];
             link_preview_url?: string;
-            gif_provider?: 'giphy' | 'klipy';
+            gif_provider?: GifProviderId;
             gif_id?: string;
             gif_url?: string;
             gif_page_url?: string;

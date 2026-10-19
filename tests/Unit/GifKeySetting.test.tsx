@@ -200,6 +200,26 @@ test('names klipy when it refuses the key', async () => {
     );
 });
 
+test('clears the error when another provider is selected', async () => {
+    stubFetch(401);
+
+    const fields = typeKey(render(disconnected), 'key-123', disconnected);
+    await (field(fields, 'gif-connect-button').props.onClick as () => Promise<void>)();
+
+    assert.ok(field(render(disconnected), 'gif-key-error'));
+
+    (field(render(disconnected), 'provider-klipy').props.onClick as () => void)();
+
+    const switched = render(disconnected);
+
+    assert.equal(
+        switched.some(
+            (element) => element.props['data-test'] === 'gif-key-error',
+        ),
+        false,
+    );
+});
+
 test('does not save when the provider cannot be reached', async () => {
     stubFetch('network');
 

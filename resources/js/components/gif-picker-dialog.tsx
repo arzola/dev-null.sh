@@ -37,13 +37,18 @@ export function GifPickerDialog({
     const [isLoadingMore, setIsLoadingMore] = useState(false);
     const [reloads, setReloads] = useState(0);
     const generation = useRef(0);
+    const queryRef = useRef(query);
+    const loadMoreController = useRef<AbortController | null>(null);
 
     useEffect(() => {
         const currentGeneration = ++generation.current;
+        queryRef.current = query;
 
         if (!open) {
             return;
         }
+
+        setNextCursor(null);
 
         const controller = new AbortController();
         const timeout = setTimeout(
@@ -93,21 +98,35 @@ export function GifPickerDialog({
         return () => {
             clearTimeout(timeout);
             controller.abort();
+            loadMoreController.current?.abort();
         };
     }, [open, query, apiKey, reloads, provider]);
 
     const loadMore = () => {
         const currentGeneration = generation.current;
+        const requestedQuery = query;
+        const controller = new AbortController();
+        loadMoreController.current = controller;
         setIsLoadingMore(true);
         const trimmed = query.trim();
         const request =
             trimmed === ''
-                ? provider.trending(apiKey, { cursor: nextCursor })
-                : provider.search(apiKey, trimmed, { cursor: nextCursor });
+                ? provider.trending(apiKey, {
+                      cursor: nextCursor,
+                      signal: controller.signal,
+                  })
+                : provider.search(apiKey, trimmed, {
+                      cursor: nextCursor,
+                      signal: controller.signal,
+                  });
 
         request
             .then((page) => {
-                if (currentGeneration !== generation.current) {
+                if (
+                    controller.signal.aborted ||
+                    currentGeneration !== generation.current ||
+                    requestedQuery !== queryRef.current
+                ) {
                     return;
                 }
 
@@ -116,7 +135,10 @@ export function GifPickerDialog({
             })
             .catch(() => undefined)
             .finally(() => {
-                if (currentGeneration === generation.current) {
+                if (
+                    currentGeneration === generation.current &&
+                    requestedQuery === queryRef.current
+                ) {
                     setIsLoadingMore(false);
                 }
             });

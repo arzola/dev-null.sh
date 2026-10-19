@@ -169,6 +169,7 @@ export function GifKeySetting({
                                         : 'outline'
                                 }
                                 aria-pressed={candidate.id === providerId}
+                                disabled={processing}
                                 onClick={() => {
                                     setProviderId(candidate.id);
                                     setError(null);
@@ -188,6 +189,7 @@ export function GifKeySetting({
                             value={key}
                             onChange={(event) => setKey(event.target.value)}
                             placeholder={`Paste your ${provider.label} API key`}
+                            disabled={processing}
                             autoComplete="off"
                             spellCheck={false}
                             className="h-9 min-w-0 flex-1 rounded-md border bg-card px-3 text-base outline-none placeholder:text-muted-foreground focus-visible:border-primary md:text-sm"

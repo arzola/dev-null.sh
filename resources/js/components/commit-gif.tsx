@@ -10,7 +10,7 @@ export function CommitGif({
     gif: CommitGif;
     className?: string;
 }) {
-    const provider = gifProviders[gif.provider];
+    const provider = gifProviders[gif.provider] ?? gifProviders.giphy;
     const credit =
         gif.username !== null
             ? `GIF by @${gif.username} on ${provider.label}`

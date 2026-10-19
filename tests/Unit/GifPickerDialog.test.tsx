@@ -15,7 +15,15 @@ vi.doMock('react', () => ({
     useId: () => `preview-${cursor++}`,
     useSyncExternalStore: (_subscribe: unknown, snapshot: () => unknown) =>
         snapshot(),
-    useRef: (initial: unknown) => ({ current: initial }),
+    useRef: (initial: unknown) => {
+        const index = cursor++;
+
+        if (!(index in state)) {
+            state[index] = { current: initial };
+        }
+
+        return state[index];
+    },
     useState: (initial: unknown) => {
         const index = cursor++;
 
@@ -37,6 +45,7 @@ vi.doMock('react', () => ({
 
 vi.doMock('@inertiajs/react', async () => ({
     ...(await vi.importActual('@inertiajs/react')),
+    usePage: () => ({ props: { gif: null } }),
 }));
 
 const result = {
@@ -71,6 +80,9 @@ const provider: GifProvider = {
 
 const { GifPickerDialog } = await import(
     '../../resources/js/components/gif-picker-dialog'
+);
+const { GifPickerButton } = await import(
+    '../../resources/js/components/gif-picker-button'
 );
 
 type Element = ReactElement<Record<string, unknown>>;
@@ -218,8 +230,13 @@ test('loads more with the cursor from the previous page', async () => {
     assert.ok(loadMore);
     (loadMore.props.onClick as () => void)();
 
-    assert.deepEqual(trending.mock.calls.at(-1), [
-        'k',
-        { cursor: 'next-page' },
-    ]);
+    const [key, options] = trending.mock.calls.at(-1) ?? [];
+
+    assert.equal(key, 'k');
+    assert.equal(options?.cursor, 'next-page');
+    assert.ok(options?.signal instanceof AbortSignal);
+});
+
+test('renders nothing when no gif provider is connected', () => {
+    assert.equal(GifPickerButton({ hasGif: false, onPick: vi.fn() }), null);
 });

@@ -1,3 +1,4 @@
+import type { GifProviderId } from '@/lib/gif-providers';
 import type { User } from '@/types/auth';
 
 export type CommitStatus = 'pending' | 'approved' | 'rejected';
@@ -48,7 +49,7 @@ export type CommitImage = {
 };
 
 export type CommitGif = {
-    provider: 'giphy' | 'klipy';
+    provider: GifProviderId;
     id: string;
     url: string;
     page_url: string;

@@ -448,6 +448,10 @@ it('moderates an attached klipy gif by its url', function (): void {
 
     Http::assertSent(fn (Request $request): bool => str_contains($request->url(), 'moderations')
         && str_contains($request->body(), 'static.klipy.com'));
+
+    // The minors check runs because the commit has an image URL (the gif):
+    Http::assertSent(fn (Request $request): bool => str_contains($request->url(), 'responses')
+        && str_contains($request->body(), 'static.klipy.com'));
 });
 
 it('keeps unavailable moderation pending and recovers on a later queued attempt', function (bool $recovers): void {
