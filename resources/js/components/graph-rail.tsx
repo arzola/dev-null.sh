@@ -24,6 +24,8 @@ type Props = {
 
 const dimmable = 'transition-opacity duration-200';
 
+const stagedDash = 4;
+
 // Nodes fade inside an opaque backdrop so the lane line behind them stays hidden.
 const dimmedNode = 'group-data-dimmed/rail-node:opacity-60';
 
@@ -85,7 +87,15 @@ export function GraphRail({
 
             {hasTail &&
                 (variant === 'staged' ? (
-                    <span className="absolute top-8 bottom-0 left-1/2 -translate-x-1/2 border-l-2 border-dashed border-rail" />
+                    <span
+                        className="absolute top-8 bottom-0 left-1/2 w-0.5 -translate-x-1/2"
+                        style={laneStrokeStyle(
+                            'var(--rail)',
+                            nextLane ?? 'var(--rail)',
+                            { hold: 0.75, dash: stagedDash, anchor: 'end' },
+                        )}
+                        data-test="rail-staged-tail"
+                    />
                 ) : (
                     <span
                         className={cn(
@@ -240,12 +250,19 @@ export function RailAvatar({
 export function RailSegment({
     lane,
     isDimmed = false,
+    isDashed = false,
+    className,
 }: {
     lane?: string;
     isDimmed?: boolean;
+    isDashed?: boolean;
+    className?: string;
 }) {
     return (
-        <div aria-hidden className="relative w-16 shrink-0 sm:w-18">
+        <div
+            aria-hidden
+            className={cn('relative w-16 shrink-0 sm:w-18', className)}
+        >
             {lane && (
                 <span
                     className={cn(
@@ -253,7 +270,11 @@ export function RailSegment({
                         dimmable,
                         { 'opacity-60': isDimmed },
                     )}
-                    style={{ background: lane }}
+                    style={
+                        isDashed
+                            ? laneStrokeStyle(lane, lane, { dash: stagedDash })
+                            : { background: lane }
+                    }
                 />
             )}
         </div>
