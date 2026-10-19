@@ -91,7 +91,8 @@ final class CreateCommitRequest extends FormRequest
         $user = $this->user();
         assert($user instanceof User);
         $body = $this->input('body');
-        $provider = GifProvider::tryFrom($this->string('gif_provider')->value()) ?? GifProvider::Giphy;
+        $rawProvider = $this->input('gif_provider');
+        $provider = is_string($rawProvider) ? (GifProvider::tryFrom($rawProvider) ?? GifProvider::Giphy) : GifProvider::Giphy;
 
         return [
             'body' => $this->hasFile('images') ? self::BODY_WITH_IMAGES_RULES : self::BODY_RULES,

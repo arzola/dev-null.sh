@@ -48,7 +48,8 @@ final class CreateCommitReplyRequest extends FormRequest
     public function rules(): array
     {
         $body = $this->input('body');
-        $provider = GifProvider::tryFrom($this->string('gif_provider')->value()) ?? GifProvider::Giphy;
+        $rawProvider = $this->input('gif_provider');
+        $provider = is_string($rawProvider) ? (GifProvider::tryFrom($rawProvider) ?? GifProvider::Giphy) : GifProvider::Giphy;
 
         return [
             'body' => $this->hasFile('images') ? CreateCommitRequest::BODY_WITH_IMAGES_RULES : CreateCommitRequest::BODY_RULES,

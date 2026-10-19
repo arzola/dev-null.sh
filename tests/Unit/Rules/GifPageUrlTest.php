@@ -23,3 +23,14 @@ it('rejects urls from the other provider', function (GifProvider $provider, stri
     'giphy page for klipy' => [GifProvider::Klipy, 'https://giphy.com/gifs/x'],
     'klipy page for giphy' => [GifProvider::Giphy, 'https://klipy.com/gifs/x'],
 ]);
+
+it('rejects unsafe or malformed page urls', function (mixed $url): void {
+    $validator = Validator::make(['url' => $url], ['url' => [new GifPageUrl(GifProvider::Klipy)]]);
+
+    expect($validator->fails())->toBeTrue();
+})->with([
+    'not https' => ['http://klipy.com/gifs/x'],
+    'with port' => ['https://klipy.com:8443/gifs/x'],
+    'with userinfo' => ['https://user:pass@klipy.com/gifs/x'],
+    'array value' => [['nope']],
+]);

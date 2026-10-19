@@ -989,6 +989,23 @@ it('accepts a klipy gif reply', function (): void {
     expect($user->commits()->sole()->gif_provider->value)->toBe('klipy');
 });
 
+it('rejects a non-string gif provider without erroring', function (): void {
+    $user = User::factory()->create();
+    $parent = Commit::factory()->create();
+
+    $response = $this->actingAs($user)->postJson(route('commit-reply.store', $parent), [
+        'body' => 'Reply with an array provider',
+        'gif_provider' => ['giphy'],
+        'gif_id' => 'abc123',
+        'gif_url' => 'https://media2.giphy.com/media/abc123/giphy.gif',
+        'gif_page_url' => 'https://giphy.com/gifs/abc123',
+        'gif_width' => 480,
+        'gif_height' => 270,
+    ]);
+
+    $response->assertUnprocessable()->assertJsonValidationErrors('gif_provider');
+});
+
 it('rejects a reply gif url from another provider', function (): void {
     $user = User::factory()->create();
     $parent = Commit::factory()->create();

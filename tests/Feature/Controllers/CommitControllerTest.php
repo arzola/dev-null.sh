@@ -1504,6 +1504,22 @@ it('rejects a gif without a provider', function (): void {
     $response->assertUnprocessable()->assertJsonValidationErrors('gif_provider');
 });
 
+it('rejects a non-string gif provider without erroring', function (): void {
+    $user = User::factory()->create();
+
+    $response = $this->actingAs($user)->postJson(route('commit.store'), [
+        'body' => 'Array provider',
+        'gif_provider' => ['giphy'],
+        'gif_id' => 'abc123',
+        'gif_url' => 'https://media2.giphy.com/media/abc123/giphy.gif',
+        'gif_page_url' => 'https://giphy.com/gifs/abc123',
+        'gif_width' => 480,
+        'gif_height' => 270,
+    ]);
+
+    $response->assertUnprocessable()->assertJsonValidationErrors('gif_provider');
+});
+
 it('rejects a gif media url that is not on giphy', function (string $url): void {
     $user = User::factory()->create();
 
