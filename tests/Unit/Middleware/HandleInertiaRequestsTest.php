@@ -236,6 +236,31 @@ it('shares no unread notifications for guests', function (): void {
     expect($shared['auth']['unreadNotificationsCount']())->toBe(0);
 });
 
+it('dims lanes by default or when enabled', function (string $cookie): void {
+    $middleware = new HandleInertiaRequests();
+
+    $request = Request::create('/', 'GET');
+
+    if ($cookie !== '') {
+        $request->cookies->set('lane_dimming', $cookie);
+    }
+
+    $shared = $middleware->share($request);
+
+    expect($shared['dimsLanes'])->toBeTrue();
+})->with(['', 'true']);
+
+it('does not dim lanes when disabled', function (): void {
+    $middleware = new HandleInertiaRequests();
+
+    $request = Request::create('/', 'GET');
+    $request->cookies->set('lane_dimming', 'false');
+
+    $shared = $middleware->share($request);
+
+    expect($shared['dimsLanes'])->toBeFalse();
+});
+
 it('does not share suggested users with guests', function (): void {
     $middleware = new HandleInertiaRequests();
 

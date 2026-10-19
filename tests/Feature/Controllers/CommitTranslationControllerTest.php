@@ -5,11 +5,13 @@ declare(strict_types=1);
 use App\Actions\CreateCommitTranslation;
 use App\Ai\Agents\CommitTranslator;
 use App\Enums\CommitStatus;
+use App\Enums\Feature;
 use App\Exceptions\CommitProcessingFailed;
 use App\Jobs\DetectCommitLanguage;
 use App\Models\Commit;
 use App\Models\User;
 use App\Services\CommitTranslations;
+use App\Services\Features;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Cache;
@@ -140,6 +142,53 @@ it('detects unfamiliar posts in the background without translating on a page rea
         ->where('commit.translation.translated', null));
 
     Queue::assertPushed(DetectCommitLanguage::class, fn (DetectCommitLanguage $job): bool => $job->commitId === $commit->id);
+    CommitTranslator::assertNeverPrompted();
+});
+
+it('hides translations everywhere and stops queueing detection once an admin switches the feature off', function (): void {
+    Queue::fake([DetectCommitLanguage::class]);
+    CommitTranslator::fake([
+        ['source_language' => 'de', 'body' => 'Good morning'],
+    ])->preventStrayPrompts();
+    $commit = Commit::factory()->create(['body' => 'Guten morgen']);
+    $url = route('commit.show', ['user' => $commit->user, 'commit' => $commit]);
+
+    $this->actingAs(User::factory()->create())
+        ->postJson(route('commit-translation.store', $commit), ['language' => 'en'])
+        ->assertOk()->assertJsonPath('translation.translated.body_segments.0.text', 'Good morning');
+
+    resolve(Features::class)->update(Feature::Translations, false);
+
+    $this->get($url)->assertOk()->assertInertia(fn ($page) => $page
+        ->where('commit.body', 'Guten morgen')
+        ->missing('commit.translation'));
+    $this->get(route('log.show', 'latest'))->assertOk()->assertInertia(fn ($page) => $page
+        ->where('commits.data.0.id', $commit->id)
+        ->missing('commits.data.0.translation'));
+    $this->postJson(route('commit-translation.store', $commit), ['language' => 'en'])->assertNotFound();
+
+    Queue::assertNothingPushed();
+    CommitTranslator::assertPromptedTimes(1);
+
+    resolve(Features::class)->update(Feature::Translations, true);
+
+    $this->get($url)->assertOk()->assertInertia(fn ($page) => $page
+        ->where('commit.translation.translated.body_segments.0.text', 'Good morning'));
+});
+
+it('skips language detection jobs that were already queued when the feature is switched off', function (): void {
+    config(['queue.default' => 'database']);
+    CommitTranslator::fake()->preventStrayPrompts();
+    $commit = Commit::factory()->create(['body' => 'Guten morgen']);
+    $this->get(route('commit.show', ['user' => $commit->user, 'commit' => $commit]))->assertOk();
+    $this->assertDatabaseHas('jobs', ['queue' => 'translations']);
+
+    resolve(Features::class)->update(Feature::Translations, false);
+    $this->artisan('queue:work', ['connection' => 'database', '--queue' => 'translations', '--once' => true])->assertSuccessful();
+
+    $this->assertDatabaseCount('jobs', 0);
+    $this->assertDatabaseCount('failed_jobs', 0);
+    expect(resolve(CommitTranslations::class)->cached($commit))->toBeNull();
     CommitTranslator::assertNeverPrompted();
 });
 

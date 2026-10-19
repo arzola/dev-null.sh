@@ -20,7 +20,7 @@ final class CreateCommitTranslationRequest extends FormRequest
         assert($commit instanceof Commit);
 
         return $commit->status === CommitStatus::Approved && $commit->isVisibleTo($this->user())
-            && $commit->body !== '' && filled(config('ai.providers.opencode.key'))
+            && $commit->body !== '' && resolve(CommitTranslations::class)->enabled()
             ? Response::allow() : Response::denyAsNotFound();
     }
 

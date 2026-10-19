@@ -40,6 +40,7 @@ use App\Http\Controllers\DeviceController;
 use App\Http\Controllers\ExportController;
 use App\Http\Controllers\FailedJobController;
 use App\Http\Controllers\FailedJobRetryController;
+use App\Http\Controllers\FeatureController;
 use App\Http\Controllers\InboxController;
 use App\Http\Controllers\IssueController;
 use App\Http\Controllers\LocalSessionController;
@@ -359,6 +360,7 @@ Route::middleware('auth')->group(function (): void {
     Route::delete('operations/failed-jobs/{failedJob}', [FailedJobController::class, 'destroy'])
         ->whereUuid('failedJob')
         ->name('failed-job.destroy');
+    Route::put('operations/features/{feature}', [FeatureController::class, 'update'])->name('feature.update');
 
     // Mention Suggestions...
     Route::get('search/mentions', [MentionSuggestionController::class, 'index'])

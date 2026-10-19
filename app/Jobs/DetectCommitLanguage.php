@@ -6,6 +6,7 @@ namespace App\Jobs;
 
 use App\Actions\CreateCommitTranslation;
 use App\Models\Commit;
+use App\Services\CommitTranslations;
 use Illuminate\Contracts\Queue\ShouldBeUnique;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -38,7 +39,7 @@ final class DetectCommitLanguage implements ShouldBeUnique, ShouldQueue
     {
         $commit = Commit::query()->approved()->find($this->commitId);
 
-        if ($commit instanceof Commit && filled(config('ai.providers.opencode.key'))) {
+        if ($commit instanceof Commit && resolve(CommitTranslations::class)->enabled()) {
             $action->handle($commit);
         }
     }
