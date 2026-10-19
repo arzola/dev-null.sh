@@ -478,3 +478,14 @@ it('leaves the gif out of a tombstone', function (): void {
 
     expect($commit->fresh()?->toArray())->not->toHaveKey('gif');
 });
+
+it('serializes no gif when the provider is missing', function (): void {
+    $commit = Commit::factory()->create([
+        'gif_id' => 'xT9IgzoKnwFNmISR8I',
+        'gif_url' => 'https://media2.giphy.com/media/xT9IgzoKnwFNmISR8I/giphy.gif',
+        'gif_page_url' => 'https://giphy.com/gifs/xT9IgzoKnwFNmISR8I',
+        'gif_provider' => null,
+    ]);
+
+    expect($commit->toArray()['gif'])->toBeNull();
+});
