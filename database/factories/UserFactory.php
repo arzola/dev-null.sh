@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Database\Factories;
 
-use App\Enums\GifProvider;
 use App\Enums\RemotesFrom;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -59,14 +58,6 @@ final class UserFactory extends Factory
             'location' => null,
             'website' => null,
             'company' => null,
-        ]);
-    }
-
-    public function withGifKey(GifProvider $provider = GifProvider::Giphy, string $key = 'gif-test-key'): self
-    {
-        return $this->state(fn (array $attributes): array => [
-            'gif_provider' => $provider->value,
-            'gif_key' => $key,
         ]);
     }
 

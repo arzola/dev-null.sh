@@ -41,7 +41,6 @@ use App\Http\Controllers\ExportController;
 use App\Http\Controllers\FailedJobController;
 use App\Http\Controllers\FailedJobRetryController;
 use App\Http\Controllers\FeatureController;
-use App\Http\Controllers\GifKeyController;
 use App\Http\Controllers\InboxController;
 use App\Http\Controllers\IssueController;
 use App\Http\Controllers\LocalSessionController;
@@ -390,10 +389,6 @@ Route::middleware('auth')->group(function (): void {
     Route::put('settings/timezone', [UserTimezoneController::class, 'update'])->name('user-timezone.update');
 
     Route::put('settings/pasteis-mode', [UserPasteisModeController::class, 'update'])->name('user-pasteis-mode.update');
-
-    // GIF provider...
-    Route::put('settings/gif', [GifKeyController::class, 'update'])->name('gif-key.update');
-    Route::delete('settings/gif', [GifKeyController::class, 'destroy'])->name('gif-key.destroy');
 
     Route::put('settings/remotes', [UserRemotesController::class, 'update'])->name('user-remotes.update');
 

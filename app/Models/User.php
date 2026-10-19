@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Actions\CreateTomFriendship;
-use App\Enums\GifProvider;
 use App\Enums\Log;
 use App\Enums\RemotesFrom;
 use Carbon\CarbonInterface;
@@ -47,8 +46,6 @@ use Illuminate\Support\Facades\DB;
  * @property-read CarbonInterface|null $onboarded_at
  * @property-read CarbonInterface|null $github_follows_imported_at
  * @property-read string|null $remember_token
- * @property-read GifProvider|null $gif_provider
- * @property-read string|null $gif_key
  * @property-read CarbonInterface|null $github_synced_at
  * @property-read CarbonInterface $created_at
  * @property-read CarbonInterface $updated_at
@@ -72,8 +69,6 @@ use Illuminate\Support\Facades\DB;
     'github_id',
     'email',
     'remember_token',
-    'gif_provider',
-    'gif_key',
     'preferred_lane',
     'lane_color',
     'pasteis_mode',
@@ -110,8 +105,6 @@ final class User extends Authenticatable
         'pasteis_received' => 0,
         'pasteis_given_today' => 0,
         'pasteis_given_on' => null,
-        'gif_provider' => null,
-        'gif_key' => null,
     ];
 
     /**
@@ -146,8 +139,6 @@ final class User extends Authenticatable
             'onboarded_at' => 'datetime',
             'github_follows_imported_at' => 'datetime',
             'remember_token' => 'string',
-            'gif_provider' => GifProvider::class,
-            'gif_key' => 'encrypted',
             'github_synced_at' => 'datetime',
             'created_at' => 'datetime',
             'updated_at' => 'datetime',
