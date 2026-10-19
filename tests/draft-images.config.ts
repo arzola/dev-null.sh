@@ -9,6 +9,7 @@ export default defineConfig({
     },
     test: {
         include: [
+            'tests/Unit/ActivityCells.test.tsx',
             'tests/Unit/AuthorHover.test.tsx',
             'tests/Unit/FollowState.test.tsx',
             'tests/Unit/DraftStash.test.tsx',
@@ -18,6 +19,8 @@ export default defineConfig({
             'tests/Unit/EmojiShortcodes.test.tsx',
             'tests/Unit/QuoteReply.test.tsx',
             'tests/Unit/SearchDialogComposition.test.tsx',
+            'tests/Unit/ReportResolution.test.tsx',
+            'tests/Unit/LinkifiedText.test.tsx',
             'tests/Unit/SlashCommandMenu.test.tsx',
         ],
     },
