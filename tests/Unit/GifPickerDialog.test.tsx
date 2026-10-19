@@ -2,8 +2,10 @@
 import assert from 'node:assert/strict';
 import * as React from 'react';
 import type { ReactElement, ReactNode } from 'react';
-import { beforeEach, test, vi } from 'vite-plus/test';
+import { afterEach, beforeEach, test, vi } from 'vite-plus/test';
 import type { GifProvider } from '../../resources/js/lib/gif-providers/types';
+
+const originalWindow = globalThis.window;
 
 let state: unknown[] = [];
 let cursor = 0;
@@ -87,6 +89,9 @@ const { GifPickerButton } = await import(
 const { writeGifProviderKey } = await import(
     '../../resources/js/lib/gif-provider-key'
 );
+const { gifProviderFor } = await import(
+    '../../resources/js/lib/gif-providers'
+);
 
 let store: Map<string, string>;
 
@@ -161,6 +166,10 @@ beforeEach(() => {
         results: [result],
         nextCursor: null,
     }));
+});
+
+afterEach(() => {
+    globalThis.window = originalWindow;
 });
 
 test('uses the provider placeholder and attribution', () => {
@@ -271,9 +280,7 @@ test('opens the picker with the stored provider and key', () => {
     );
 
     assert.ok(dialog);
-    assert.equal(
-        (dialog.props.provider as GifProvider | undefined)?.id,
-        'klipy',
-    );
+    assert.equal(dialog.props.provider, gifProviderFor('klipy'));
     assert.equal(dialog.props.open, false);
+    assert.ok(field(fields, 'attach-gif-button'));
 });

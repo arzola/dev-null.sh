@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
@@ -26,7 +26,23 @@ export function GifKeySetting() {
     const [editing, setEditing] = useState(false);
     const [processing, setProcessing] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const provider = gifProviderFor(providerId);
+    const displayProviderId: GifProviderId =
+        editing || entry === null ? providerId : entry.provider;
+    const provider = gifProviderFor(displayProviderId);
+    const lastStored = useRef<{ provider?: GifProviderId; key?: string }>({
+        provider: entry?.provider,
+        key: entry?.key,
+    });
+
+    useEffect(() => {
+        if (
+            lastStored.current.provider !== entry?.provider ||
+            lastStored.current.key !== entry?.key
+        ) {
+            lastStored.current = { provider: entry?.provider, key: entry?.key };
+            setError(null);
+        }
+    }, [entry?.provider, entry?.key]);
 
     const connect = async () => {
         if (processing) {
@@ -39,29 +55,44 @@ export function GifKeySetting() {
             return;
         }
 
+        if (candidate.length > 255) {
+            setError('That key is too long.');
+
+            return;
+        }
+
         setProcessing(true);
         setError(null);
 
-        const verdict = await provider.validateKey(candidate);
+        const selected = gifProviderFor(providerId);
+        const verdict = await selected.validateKey(candidate);
 
         if (verdict === 'invalid') {
-            setError(`That key was rejected by ${provider.label}.`);
+            setError(`That key was rejected by ${selected.label}.`);
             setProcessing(false);
 
             return;
         }
 
         if (verdict === 'unreachable') {
-            setError(`Couldn't reach ${provider.label} to verify the key.`);
+            setError(`Couldn't reach ${selected.label} to verify the key.`);
             setProcessing(false);
 
             return;
         }
 
-        writeGifProviderKey(user.id, {
-            provider: providerId,
-            key: candidate,
-        });
+        if (
+            !writeGifProviderKey(user.id, {
+                provider: providerId,
+                key: candidate,
+            })
+        ) {
+            setError("Couldn't save the key in this browser.");
+            setProcessing(false);
+
+            return;
+        }
+
         setKey('');
         setError(null);
         setEditing(false);
@@ -90,7 +121,7 @@ export function GifKeySetting() {
                 GIF search runs on your own {provider.label} API key, under your
                 own quota. Get a key at{' '}
                 <a
-                    href={helpHref[providerId]}
+                    href={helpHref[displayProviderId]}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="underline underline-offset-4"

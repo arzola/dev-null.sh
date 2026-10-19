@@ -70,13 +70,32 @@ function notify(userId: string): void {
 export function writeGifProviderKey(
     userId: string,
     value: GifProviderKey,
-): void {
+): boolean {
+    const key = value.key.trim();
+
+    if (key === '' || key.length > 255) {
+        return false;
+    }
+
     writeStorage(
         storageKey(userId),
-        JSON.stringify({ provider: value.provider, key: value.key.trim() }),
+        JSON.stringify({ provider: value.provider, key }),
     );
     cache.delete(userId);
+
+    const stored = readGifProviderKey(userId);
+
+    if (
+        stored === null ||
+        stored.provider !== value.provider ||
+        stored.key !== key
+    ) {
+        return false;
+    }
+
     notify(userId);
+
+    return true;
 }
 
 export function clearGifProviderKey(userId: string): void {
@@ -96,7 +115,15 @@ export function subscribeGifProviderKey(
     listeners.set(userId, subscribed);
 
     const onStorage = (event: StorageEvent): void => {
-        if (event.key !== key) {
+        if (event.key !== null && event.key !== key) {
+            return;
+        }
+
+        if (
+            event.storageArea !== undefined &&
+            event.storageArea !== null &&
+            event.storageArea !== window.localStorage
+        ) {
             return;
         }
 

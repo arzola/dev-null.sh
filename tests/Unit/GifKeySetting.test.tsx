@@ -2,7 +2,9 @@
 import assert from 'node:assert/strict';
 import * as React from 'react';
 import type { ReactElement, ReactNode } from 'react';
-import { beforeEach, test, vi } from 'vite-plus/test';
+import { afterEach, beforeEach, test, vi } from 'vite-plus/test';
+
+const originalWindow = globalThis.window;
 
 let state: unknown[] = [];
 let cursor = 0;
@@ -137,6 +139,10 @@ beforeEach(() => {
     } as unknown as Window & typeof globalThis;
 });
 
+afterEach(() => {
+    globalThis.window = originalWindow;
+});
+
 test('shows the browser-only notice', () => {
     const note = field(render(), 'gif-storage-note');
 
@@ -260,6 +266,54 @@ test('does not save a whitespace-only key', async () => {
     assert.equal(readGifProviderKey('user-1'), null);
 });
 
+test('rejects an overlong key before verifying it', async () => {
+    const fetchMock = vi.fn(
+        async () => new Response('{}', { status: 200 }),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+
+    const fields = typeKey(render(), 'a'.repeat(256));
+    await (field(fields, 'gif-connect-button').props.onClick as () => Promise<void>)();
+
+    assert.equal(fetchMock.mock.calls.length, 0);
+    assert.equal(readGifProviderKey('user-1'), null);
+    assert.equal(
+        field(render(), 'gif-key-error').props.children,
+        'That key is too long.',
+    );
+});
+
+test('keeps the typed key and edit mode when the browser refuses to save', async () => {
+    stubFetch(200);
+
+    writeGifProviderKey('user-1', { provider: 'giphy', key: 'old' });
+
+    let fields = render();
+    (field(fields, 'change-provider-button').props.onClick as () => void)();
+    fields = render();
+
+    globalThis.window.localStorage.setItem = () => undefined;
+
+    (field(fields, 'gif-key-input').props.onChange as (event: {
+        target: { value: string };
+    }) => void)({ target: { value: 'new-key' } });
+    fields = render();
+
+    await (field(fields, 'gif-connect-button').props.onClick as () => Promise<void>)();
+
+    fields = render();
+
+    assert.equal(field(fields, 'gif-key-input').props.value, 'new-key');
+    assert.equal(
+        field(fields, 'gif-key-error').props.children,
+        "Couldn't save the key in this browser.",
+    );
+    assert.deepEqual(readGifProviderKey('user-1'), {
+        provider: 'giphy',
+        key: 'old',
+    });
+});
+
 test('shows the connected provider from local storage', () => {
     writeGifProviderKey('user-1', { provider: 'klipy', key: 'k' });
 
@@ -272,6 +326,37 @@ test('shows the connected provider from local storage', () => {
             .map((child) => (typeof child === 'string' ? child : ''))
             .join(''),
         'Connected to KLIPY.',
+    );
+});
+
+test('describes the stored provider instead of the default one', () => {
+    let fields = render();
+
+    assert.ok(
+        fields.some(
+            (element) => element.props.href === 'https://developers.giphy.com',
+        ),
+    );
+
+    writeGifProviderKey('user-1', { provider: 'klipy', key: 'k' });
+
+    fields = render();
+
+    const description = fields.find(
+        (element) => element.props.id === 'gif-key-description',
+    );
+
+    assert.ok(description);
+    assert.ok(
+        React.Children.toArray(description.props.children as ReactNode)
+            .map((child) => (typeof child === 'string' ? child : ''))
+            .join('')
+            .includes('KLIPY'),
+    );
+    assert.ok(
+        fields.some(
+            (element) => element.props.href === 'https://partner.klipy.com',
+        ),
     );
 });
 
@@ -321,4 +406,10 @@ test('replaces the connected provider when another is chosen', async () => {
     await (field(fields, 'gif-connect-button').props.onClick as () => Promise<void>)();
 
     assert.deepEqual(readGifProviderKey('user-1'), { provider: 'klipy', key: 'klipy-key' });
+
+    fields = render();
+    (field(fields, 'change-provider-button').props.onClick as () => void)();
+    fields = render();
+
+    assert.equal(field(fields, 'gif-key-input').props.value, '');
 });

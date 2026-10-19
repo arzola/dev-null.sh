@@ -100,12 +100,40 @@ test('clears the entry and notifies', () => {
     writeGifProviderKey('user-1', { provider: 'giphy', key: 'k-123' });
 
     const calls: string[] = [];
-    subscribeGifProviderKey('user-1', () => calls.push('hit'));
+    const unsubscribe = subscribeGifProviderKey('user-1', () => calls.push('hit'));
 
     clearGifProviderKey('user-1');
 
     assert.equal(store.has('gif-provider:user-1'), false);
     assert.deepEqual(calls, ['hit']);
+    assert.equal(readGifProviderKey('user-1'), null);
+
+    unsubscribe();
+});
+
+test('refuses invalid keys and reports nothing was written', () => {
+    assert.equal(
+        writeGifProviderKey('user-1', { provider: 'giphy', key: '   ' }),
+        false,
+    );
+    assert.equal(
+        writeGifProviderKey('user-1', {
+            provider: 'giphy',
+            key: 'a'.repeat(256),
+        }),
+        false,
+    );
+    assert.equal(store.has('gif-provider:user-1'), false);
+    assert.equal(readGifProviderKey('user-1'), null);
+});
+
+test('reports failure when storage swallows the write', () => {
+    globalThis.window.localStorage.setItem = () => undefined;
+
+    assert.equal(
+        writeGifProviderKey('user-1', { provider: 'giphy', key: 'k-123' }),
+        false,
+    );
     assert.equal(readGifProviderKey('user-1'), null);
 });
 
@@ -126,4 +154,19 @@ test('reacts to storage events for its own key only', () => {
 
     unsubscribe();
     assert.equal(storageHandlers.length, 0);
+});
+
+test('reacts to a full storage clear from another tab', () => {
+    writeGifProviderKey('user-1', { provider: 'giphy', key: 'k-123' });
+
+    const calls: string[] = [];
+    const unsubscribe = subscribeGifProviderKey('user-1', () => calls.push('hit'));
+
+    store.clear();
+    storageHandlers[0]!({ key: null } as unknown as StorageEvent);
+
+    assert.deepEqual(calls, ['hit']);
+    assert.equal(readGifProviderKey('user-1'), null);
+
+    unsubscribe();
 });
