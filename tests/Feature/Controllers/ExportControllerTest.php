@@ -441,8 +441,8 @@ it('also limits exports to five a minute per user independently of the hourly bu
     $this->actingAs($user)->get(route('export'))->assertOk();
 });
 
-it('never exports the giphy key', function (): void {
-    $user = User::factory()->withGiphyKey('giphy-test-key')->create();
+it('never exports the gif key', function (): void {
+    $user = User::factory()->withGifKey()->create();
 
     $response = $this->actingAs($user)->get(route('export'));
 
@@ -450,8 +450,8 @@ it('never exports the giphy key', function (): void {
 
     $data = json_decode($response->streamedContent(), true, flags: JSON_THROW_ON_ERROR);
 
-    expect($data['profile'])->not->toHaveKey('giphy_key')
-        ->and($response->streamedContent())->not->toContain('giphy-test-key');
+    expect($data['profile'])->not->toHaveKey('gif_key')
+        ->and($response->streamedContent())->not->toContain('gif-test-key');
 });
 
 it('exports the messages the user sent, and not the ones they received', function (): void {

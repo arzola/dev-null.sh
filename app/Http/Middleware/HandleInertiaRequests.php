@@ -48,10 +48,14 @@ final class HandleInertiaRequests extends Middleware
         return [
             ...parent::share($request),
             'name' => config('app.name'),
-            'giphy' => fn (): ?array => (function () use ($request): ?array {
-                $key = $request->user()?->giphy_key;
+            'gif' => fn (): ?array => (function () use ($request): ?array {
+                $user = $request->user();
 
-                return is_string($key) && $key !== '' ? ['key' => $key] : null;
+                if ($user?->gif_provider === null || $user->gif_key === null || $user->gif_key === '') {
+                    return null;
+                }
+
+                return ['provider' => $user->gif_provider->value, 'key' => $user->gif_key];
             })(),
             'auth' => [
                 'user' => fn (): ?User => $request->user()?->loadCounts(),

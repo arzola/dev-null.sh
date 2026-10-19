@@ -41,7 +41,7 @@ use App\Http\Controllers\ExportController;
 use App\Http\Controllers\FailedJobController;
 use App\Http\Controllers\FailedJobRetryController;
 use App\Http\Controllers\FeatureController;
-use App\Http\Controllers\GiphyKeyController;
+use App\Http\Controllers\GifKeyController;
 use App\Http\Controllers\InboxController;
 use App\Http\Controllers\IssueController;
 use App\Http\Controllers\LocalSessionController;
@@ -391,9 +391,9 @@ Route::middleware('auth')->group(function (): void {
 
     Route::put('settings/pasteis-mode', [UserPasteisModeController::class, 'update'])->name('user-pasteis-mode.update');
 
-    // Giphy key...
-    Route::put('settings/giphy', [GiphyKeyController::class, 'update'])->name('giphy-key.update');
-    Route::delete('settings/giphy', [GiphyKeyController::class, 'destroy'])->name('giphy-key.destroy');
+    // GIF provider...
+    Route::put('settings/gif', [GifKeyController::class, 'update'])->name('gif-key.update');
+    Route::delete('settings/gif', [GifKeyController::class, 'destroy'])->name('gif-key.destroy');
 
     Route::put('settings/remotes', [UserRemotesController::class, 'update'])->name('user-remotes.update');
 

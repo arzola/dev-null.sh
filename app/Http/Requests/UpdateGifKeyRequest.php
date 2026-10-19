@@ -4,9 +4,12 @@ declare(strict_types=1);
 
 namespace App\Http\Requests;
 
+use App\Enums\GifProvider;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\Rules\Enum;
 
-final class UpdateGiphyKeyRequest extends FormRequest
+final class UpdateGifKeyRequest extends FormRequest
 {
     public function authorize(): bool
     {
@@ -23,12 +26,18 @@ final class UpdateGiphyKeyRequest extends FormRequest
     }
 
     /**
-     * @return array<string, list<string>>
+     * @return array<string, list<string|Enum>>
      */
     public function rules(): array
     {
         return [
+            'provider' => ['required', 'string', Rule::enum(GifProvider::class)],
             'key' => ['required', 'string', 'max:255'],
         ];
+    }
+
+    public function provider(): GifProvider
+    {
+        return GifProvider::from($this->string('provider')->value());
     }
 }

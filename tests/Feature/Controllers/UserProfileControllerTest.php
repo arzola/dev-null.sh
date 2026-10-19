@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Enums\GifProvider;
 use App\Models\User;
 use Illuminate\Support\Facades\Http;
 
@@ -189,16 +190,17 @@ it('requires authentication to sync', function (): void {
     Http::assertNothingSent();
 });
 
-it('renders whether a giphy key is connected', function (bool $connected): void {
-    $user = $connected
-        ? User::factory()->withGiphyKey()->create()
-        : User::factory()->create();
+it('renders the connected gif provider', function (?string $provider): void {
+    $user = $provider === null
+        ? User::factory()->create()
+        : User::factory()->withGifKey(GifProvider::from($provider))->create();
 
     $this->actingAs($user)
         ->get(route('user-profile.edit'))
         ->assertOk()
         ->assertInertia(fn ($page) => $page
-            ->component('user-profile/edit')
-            ->where('giphyConnected', $connected)
-            ->missing('auth.user.giphy_key'));
-})->with([true, false]);
+            ->where('gifConnected', $provider !== null)
+            ->where('gifProvider', $provider)
+            ->missing('auth.user.gif_key')
+            ->missing('auth.user.gif_provider'));
+})->with([null, 'giphy', 'klipy']);
