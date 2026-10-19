@@ -3,8 +3,8 @@ import { Ban, Ellipsis, Volume2, VolumeX } from 'lucide-react';
 import { useState } from 'react';
 import UserBlockController from '@/actions/App/Http/Controllers/UserBlockController';
 import UserMuteController from '@/actions/App/Http/Controllers/UserMuteController';
-import { clearMentionSuggestionsCache } from '@/components/mention-textarea';
 import { rememberBlock } from '@/components/follow-button';
+import { clearMentionSuggestionsCache } from '@/components/mention-textarea';
 import { Button } from '@/components/ui/button';
 import {
     Dialog,
