@@ -19,7 +19,8 @@ it('stores a trimmed giphy key encrypted at rest', function (): void {
 
     expect($user->refresh()->gif_key)->toBe('giphy-test-key')
         ->and(DB::table('users')->where('id', $user->id)->value('gif_key'))
-        ->not->toContain('giphy-test-key');
+        ->not->toContain('giphy-test-key')
+        ->and($user->refresh()->gif_provider)->toBe(GifProvider::Giphy);
 });
 
 it('replaces one provider with another atomically', function (): void {

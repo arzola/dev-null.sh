@@ -27,3 +27,14 @@ it('shares no gif config for guests', function (): void {
     $this->get(route('log.show', Log::Trending))
         ->assertInertia(fn (Assert $page): Assert => $page->where('gif', null));
 });
+
+it('shares no gif config when a provider has no key', function (?string $key): void {
+    $user = User::factory()->create([
+        'gif_provider' => GifProvider::Klipy,
+        'gif_key' => $key,
+    ]);
+
+    $this->actingAs($user)
+        ->get(route('log.show', Log::Following))
+        ->assertInertia(fn (Assert $page): Assert => $page->where('gif', null));
+})->with([null, '']);
