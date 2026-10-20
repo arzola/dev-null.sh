@@ -23,6 +23,7 @@ import {
 } from '@/components/commit-image-picker';
 import { CommitImages } from '@/components/commit-images';
 import { CommitPastelButton } from '@/components/commit-pastel-button';
+import { CommitRulesDialog, useCommitRules } from '@/components/commit-rules';
 import { CommitSecondaryActions } from '@/components/commit-secondary-actions';
 import { CommitStarButton } from '@/components/commit-star-button';
 import { CommitStatusBadge } from '@/components/commit-status-badge';
@@ -41,6 +42,7 @@ import { LinkPreview } from '@/components/link-preview';
 import { MentionTextarea } from '@/components/mention-textarea';
 import { SecretWarning } from '@/components/secret-warning';
 import { StashLabel } from '@/components/stash-label';
+import { showTimeout, timeoutFrom } from '@/components/timeout-dialog';
 import { TimestampTooltip } from '@/components/timestamp-tooltip';
 import { Button } from '@/components/ui/button';
 import {
@@ -1249,6 +1251,7 @@ function ReplyComposer({
             images: File[];
             image_descriptions: string[];
             link_preview_url?: string;
+            commit_rules_accepted?: boolean;
             gif_provider?: GifProviderId;
             gif_id?: string;
             gif_url?: string;
@@ -1266,6 +1269,7 @@ function ReplyComposer({
     });
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const secrets = useSecretWarning(body);
+    const commitRules = useCommitRules();
     const isReplyable =
         (images.length > 0 || characterCount(body.trim()) >= minBodyLength) &&
         bodyCharacterCount(body) <= maxBodyLength;
@@ -1320,6 +1324,7 @@ function ReplyComposer({
         if (
             request.processing ||
             attachments.isReading() ||
+            !commitRules.beforeSubmit() ||
             !secrets.beforeSubmit()
         ) {
             return;
@@ -1330,6 +1335,7 @@ function ReplyComposer({
             images: gif === null ? images : [],
             image_descriptions: gif === null ? descriptions : [],
             ...(gif !== null ? gifFormFields(gif) : {}),
+            commit_rules_accepted: commitRules.hasAccepted(),
             ...(linkCard.isChosen
                 ? { link_preview_url: linkCard.link ?? '' }
                 : {}),
@@ -1348,7 +1354,11 @@ function ReplyComposer({
                     onReplied(reply.parent);
                 },
                 onHttpException: (response) => {
-                    if (!commitNotFound(parent.id, response)) {
+                    const timeout = timeoutFrom(response.status, response.data);
+
+                    if (timeout) {
+                        showTimeout(timeout);
+                    } else if (!commitNotFound(parent.id, response)) {
                         toast.error(replyFailureMessage(response));
                     }
                 },
@@ -1425,6 +1435,7 @@ function ReplyComposer({
                     onRemove={() => updateGif(null)}
                 />
             )}
+            <CommitRulesDialog rules={commitRules} textarea={textareaRef} />
             <SecretWarning
                 body={body}
                 findings={secrets.findings}
