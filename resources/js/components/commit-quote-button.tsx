@@ -11,6 +11,7 @@ import {
     ImagePickerPreviews,
     imageErrorFrom,
 } from '@/components/commit-image-picker';
+import { CommitRulesDialog, useCommitRules } from '@/components/commit-rules';
 import InputError from '@/components/input-error';
 import { MentionTextarea } from '@/components/mention-textarea';
 import { QuotedCommit } from '@/components/quoted-commit';
@@ -133,6 +134,7 @@ function QuoteComposer({
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const imageInputRef = useRef<HTMLInputElement>(null);
     const secrets = useSecretWarning(body);
+    const commitRules = useCommitRules();
     const keys = useKeyLabels();
 
     const isQuotable =
@@ -190,17 +192,18 @@ function QuoteComposer({
                 {...CommitController.store.form()}
                 errorBag="quote"
                 onBefore={() =>
-                    !attachments.isReading() && secrets.beforeSubmit()
+                    !attachments.isReading() &&
+                    commitRules.beforeSubmit() &&
+                    secrets.beforeSubmit()
                 }
-                transform={(data) =>
-                    images.length > 0
-                        ? {
-                              ...data,
-                              images,
-                              image_descriptions: descriptions,
-                          }
-                        : data
-                }
+                transform={(data) => ({
+                    ...data,
+                    commit_rules_accepted: commitRules.hasAccepted(),
+                    ...(images.length > 0 && {
+                        images,
+                        image_descriptions: descriptions,
+                    }),
+                })}
                 options={{ preserveScroll: true }}
                 onError={(errors) => {
                     if (errors.quoted_commit_id) {
@@ -271,6 +274,10 @@ function QuoteComposer({
                                 message={errors.body ?? errors.quoted_commit_id}
                             />
 
+                            <CommitRulesDialog
+                                rules={commitRules}
+                                textarea={textareaRef}
+                            />
                             <SecretWarning
                                 body={body}
                                 findings={secrets.findings}
