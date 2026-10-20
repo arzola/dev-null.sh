@@ -207,3 +207,17 @@ it('has no next commit of a thread whose author the viewer muted', function (): 
     expect($commit->continuation_id)->toBeNull()
         ->and($commit->replies_count)->toBe(0);
 });
+
+it('eager loads gifs on a keyed commit collection', function (): void {
+    $commits = Commit::factory()->withGif()->count(3)->create();
+
+    $keyed = Commit::query()
+        ->whereIn('id', $commits->pluck('id'))
+        ->get()
+        ->keyBy('id');
+
+    $loaded = $keyed->load('user');
+
+    expect($loaded)->toHaveCount(3)
+        ->and($loaded->every(fn (Commit $commit): bool => $commit->relationLoaded('gif')))->toBeTrue();
+});
