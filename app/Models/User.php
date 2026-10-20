@@ -207,18 +207,6 @@ final class User extends Authenticatable
     }
 
     /**
-     * Reports keep an author in moderation for seven days, even if the reported commit is deleted.
-     */
-    public function hasRecentReports(): bool
-    {
-        return CommitReport::query()
-            ->whereNull('dismissed_at')
-            ->where('created_at', '>=', now()->subWeek())
-            ->whereIn('commit_id', $this->commits()->withTrashed()->select('id'))
-            ->exists();
-    }
-
-    /**
      * Ten followers are enough, so the check stops at the tenth instead of counting every follower.
      */
     public function hasGoodReputation(): bool
