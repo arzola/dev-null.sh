@@ -10,9 +10,10 @@ const emojiBeforeCaretPattern =
     /(?:^|[^\p{L}\p{N}_:])(:([A-Za-z0-9_+-]{2,}))$/u;
 
 export type CaretToken = {
-    kind: 'mention' | 'slash' | 'emoji';
+    kind: 'mention' | 'slash' | 'emoji' | 'issue';
     start: number;
     query: string;
+    complete?: boolean;
 };
 
 export type TextareaLike = {

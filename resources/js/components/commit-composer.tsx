@@ -48,7 +48,13 @@ import {
     useStash,
 } from '@/hooks/use-stash';
 import { useUser } from '@/hooks/use-user';
-import { maxBodyLength, minBodyLength } from '@/lib/commit';
+import {
+    bodyCharacterCount,
+    isSavedAs,
+    maxBodyLength,
+    maxRawBodyLength,
+    minBodyLength,
+} from '@/lib/commit';
 import { hasModKey, useKeyLabels } from '@/lib/keyboard';
 import {
     characterCount,
@@ -100,11 +106,9 @@ function CommitComposerBody({
     errors,
     onKeyDown,
     drop,
-    nextLane,
 }: {
     id: string;
     isInDialog: boolean;
-    nextLane?: string;
     user: User;
     stash: UseStashReturn;
     attachments: ReturnType<typeof useImageAttachments>;
@@ -132,7 +136,11 @@ function CommitComposerBody({
         setIsScheduling,
     } = schedule;
     const hasImages = attachments.images.length > 0;
-    const progress = bodyProgress(characterCount(body));
+    const progress = bodyProgress(
+        issue.command !== null
+            ? characterCount(body)
+            : bodyCharacterCount(body),
+    );
     const isFilled = hasImages || characterCount(body.trim()) >= minBodyLength;
     const error = errors.body ?? errors.link_preview_url;
     const scheduleError =
@@ -186,7 +194,6 @@ function CommitComposerBody({
             )}
             <GraphRail
                 lane={laneColor(user.lane)}
-                nextLane={nextLane}
                 variant="staged"
                 isFilled={isFilled}
                 hasTail={!isInDialog}
@@ -258,7 +265,9 @@ function CommitComposerBody({
                                 onKeyDown(event)
                             }
                             onFocus={isRestored ? moveCaretToEnd : undefined}
-                            maxLength={maxBodyLength}
+                            maxLength={
+                                isIssue ? maxBodyLength : maxRawBodyLength
+                            }
                             onImage={() => imageInputRef.current?.click()}
                             onPoll={startPoll}
                             onIssue={(kind, rest) => issue.start(kind, rest)}
@@ -487,6 +496,7 @@ function CommitComposerBody({
                         <BodyCounter
                             id={`${id}-count`}
                             body={body}
+                            isIssue={isIssue}
                             className="text-[13px]"
                         />
                         {isIssue ? (
@@ -548,12 +558,10 @@ export function CommitComposer({
     id = 'body',
     isInDialog = false,
     onCommitted,
-    nextLane,
 }: {
     id?: string;
     isInDialog?: boolean;
     onCommitted?: () => void;
-    nextLane?: string;
 }) {
     const schedule = useCommitSchedule();
     const { isScheduling, scheduledAt, setScheduledAt, setIsScheduling } =
@@ -576,19 +584,9 @@ export function CommitComposer({
     );
     const [poll, setPoll] = useState<PollDraft | null>(null);
     const secrets = useSecretWarning(body);
+    const isPosting = useRef(false);
 
     const hasImages = attachments.images.length > 0;
-    const isCommittable =
-        !attachments.reading &&
-        (hasImages || characterCount(body.trim()) >= minBodyLength) &&
-        (poll === null ||
-            poll.options.every((option) => option.trim().length > 0));
-
-    const isSubmittable =
-        isCommittable &&
-        (!isScheduling ||
-            (scheduledAt !== '' && isExistingLocalTime(scheduledAt)));
-
     const issue = useIssueCommand({
         body,
         updateBody: stash.updateBody,
@@ -604,7 +602,31 @@ export function CommitComposer({
         },
     });
 
+    const isCommittable =
+        !attachments.reading &&
+        (hasImages || characterCount(body.trim()) >= minBodyLength) &&
+        (issue.command !== null
+            ? characterCount(body)
+            : bodyCharacterCount(body)) <= maxBodyLength &&
+        (poll === null ||
+            poll.options.every((option) => option.trim().length > 0));
+
+    const isSubmittable =
+        isCommittable &&
+        (!isScheduling ||
+            (scheduledAt !== '' && isExistingLocalTime(scheduledAt)));
+
     useEffect(() => discardSeriesStash(user.id), [user.id]);
+
+    const { committed } = usePage().flash;
+
+    // A deploy reloads the page before onSuccess can drop the draft, so the reloaded page names the commit it became.
+    useEffect(() => {
+        if (committed !== undefined && isSavedAs(body, committed.body)) {
+            drop();
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     const onKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
         if (
@@ -634,10 +656,17 @@ export function CommitComposer({
                 ? ScheduledCommitController.store.form()
                 : CommitController.store.form())}
             onBefore={() =>
+                !isPosting.current &&
                 !attachments.isReading() &&
                 issue.command === null &&
                 secrets.beforeSubmit()
             }
+            onStart={() => {
+                isPosting.current = true;
+            }}
+            onFinish={() => {
+                isPosting.current = false;
+            }}
             transform={(data) => ({
                 ...data,
                 ...(hasImages && {
@@ -690,7 +719,6 @@ export function CommitComposer({
                         errors={errors}
                         onKeyDown={onKeyDown}
                         drop={drop}
-                        nextLane={nextLane}
                     />
                 </fieldset>
             )}

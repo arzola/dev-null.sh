@@ -10,6 +10,7 @@ let cursor = 0;
 vi.doMock('react', () => ({
     ...React,
     useEffect: () => {},
+    useEffectEvent: (callback: () => void) => callback,
     useMemo: (factory: () => unknown) => factory(),
     useId: () => `menu-${cursor++}`,
     useSyncExternalStore: (_subscribe: unknown, snapshot: () => unknown) =>
@@ -34,6 +35,9 @@ vi.doMock('react', () => ({
             },
         ];
     },
+}));
+vi.doMock('@inertiajs/react', () => ({
+    usePage: () => ({ props: { repository: 'nunomaduro/dev-null.sh' } }),
 }));
 vi.doMock('../../resources/js/lib/caret-position', () => ({
     caretMenuPosition: () => ({ left: 0, top: 0 }),
@@ -108,6 +112,7 @@ function type(next: string, overrides: Record<string, unknown> = {}) {
             selectionStart: next.length,
             selectionEnd: next.length,
         },
+        nativeEvent: { isComposing: false },
     });
 
     return render(overrides);
@@ -301,7 +306,7 @@ test('typing @ opens the mention menu in its searching state', () => {
 });
 
 test('mention results for a stale query are not shown', () => {
-    state[5] = {
+    state[6] = {
         key: ':bob',
         users: [{ id: 'bob', username: 'bob', name: 'Bob', lane: 2 }],
     };
@@ -313,7 +318,7 @@ test('mention results for a stale query are not shown', () => {
 });
 
 test('selecting a mention inserts @username and closes the menu', () => {
-    state[5] = { key: ':ali', users: [alice] };
+    state[6] = { key: ':::ali', users: [alice] };
     const tree = type('@ali');
     const suggestion = mentionRows(tree)[0]!;
 
@@ -370,7 +375,10 @@ test('an exact issue command followed by space runs without picking', () => {
 test('issue commands need the composer callback and stay out of replies and scheduling', () => {
     assert.equal(row(type('/b', { onIssue: undefined }), 'bug'), undefined);
     assert.equal(
-        row(type('/', { commandContext: surface({ surface: 'reply' }) }), 'bug'),
+        row(
+            type('/', { commandContext: surface({ surface: 'reply' }) }),
+            'bug',
+        ),
         undefined,
     );
     assert.equal(

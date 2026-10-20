@@ -1,5 +1,7 @@
+import { usePage } from '@inertiajs/react';
 import type { ComponentProps, KeyboardEvent, Ref, SyntheticEvent } from 'react';
-import { useEffect, useId, useRef, useState } from 'react';
+import { useEffect, useEffectEvent, useId, useRef, useState } from 'react';
+import { index as issueSuggestions } from '@/actions/App/Http/Controllers/IssueSuggestionController';
 import MentionSuggestionController from '@/actions/App/Http/Controllers/MentionSuggestionController';
 import {
     CaretMenuList,
@@ -15,6 +17,7 @@ import type { CaretToken } from '@/lib/caret-token';
 import { typedProse } from '@/lib/code';
 import { emojifyInput, searchEmoji } from '@/lib/emoji';
 import type { EmojiSuggestion } from '@/lib/emoji';
+import { issueReferenceBeforeCaret } from '@/lib/issue-reference';
 import {
     availableCommands,
     codeFenceInsertion,
@@ -32,6 +35,12 @@ type Suggestions = {
     users: User[];
 };
 
+type IssueSuggestion = {
+    number: number;
+    title: string;
+    url: string;
+};
+
 const debounce = 120;
 const cache = new Map<string, User[]>();
 
@@ -42,10 +51,14 @@ export function clearMentionSuggestionsCache(): void {
 async function fetchSuggestions(
     query: string,
     org: string | undefined,
+    reply: string | undefined,
+    quote: string | undefined,
     signal: AbortSignal,
 ): Promise<User[]> {
     const response = await fetch(
-        MentionSuggestionController.index({ query: { q: query, org } }).url,
+        MentionSuggestionController.index({
+            query: { q: query, org, reply, quote },
+        }).url,
         {
             headers: {
                 Accept: 'application/json',
@@ -62,7 +75,13 @@ async function fetchSuggestions(
     }
 
     const data = (await response.json()) as { users: User[] };
-    cache.set(`${org ?? ''}:${query.toLowerCase()}`, data.users);
+    // Replies need fresh participants when someone joins the thread.
+    if (!reply) {
+        cache.set(
+            `${org ?? ''}:${reply ?? ''}:${quote ?? ''}:${query.toLowerCase()}`,
+            data.users,
+        );
+    }
 
     return data.users;
 }
@@ -118,7 +137,10 @@ export function MentionTextarea({
     onIssue,
     commandContext,
     suggestsMentions = true,
+    suggestsIssues = suggestsMentions,
     org,
+    reply,
+    quote,
     maxLength,
     ...props
 }: Omit<ComponentProps<'textarea'>, 'value' | 'onChange'> & {
@@ -130,21 +152,36 @@ export function MentionTextarea({
     onIssue?: (kind: 'bug' | 'feature', rest: string) => void;
     commandContext?: ComposerSurface;
     suggestsMentions?: boolean;
+    suggestsIssues?: boolean;
     org?: string;
+    reply?: string;
+    quote?: string;
 }) {
+    const { repository } = usePage().props;
     const id = useId();
     const textareaRef = useRef<HTMLTextAreaElement>(null);
+    const dismissedIssue = useRef<string | null>(null);
     const [token, setToken] = useState<CaretToken | null>(null);
     const [dismissedStart, setDismissedStart] = useState<number | null>(null);
     const [position, setPosition] = useState<CaretMenuPosition | null>(null);
     const [results, setResults] = useState<Suggestions | null>(null);
+    const [issueResult, setIssueResult] = useState<IssueSuggestion | null>(
+        null,
+    );
     const [activeIndex, setActiveIndex] = useState(0);
 
     const mention = token?.kind === 'mention' ? token : null;
     const slash = token?.kind === 'slash' ? token : null;
     const emoji = token?.kind === 'emoji' ? token : null;
+    const issueToken = token?.kind === 'issue' ? token : null;
+    const issueQuery = issueToken?.query ?? null;
+    const issue =
+        issueQuery === String(issueResult?.number) ? issueResult : null;
     const query = mention?.query.toLowerCase() ?? null;
-    const key = query === null ? null : `${org ?? ''}:${query}`;
+    const key =
+        query === null
+            ? null
+            : `${org ?? ''}:${reply ?? ''}:${quote ?? ''}:${query}`;
 
     const setRefs = (element: HTMLTextAreaElement | null) => {
         textareaRef.current = element;
@@ -171,11 +208,26 @@ export function MentionTextarea({
 
     const track = (textarea: HTMLTextAreaElement) => {
         const caret = textarea.selectionStart;
-        const next = caretToken(
-            textarea,
-            typedProse(textarea.value.slice(0, caret)).at(-1) ?? '',
-            suggestsMentions,
-        );
+        const issue = suggestsIssues
+            ? issueReferenceBeforeCaret(textarea.value, caret)
+            : null;
+        const next =
+            caretToken(
+                textarea,
+                typedProse(textarea.value.slice(0, caret)).at(-1) ?? '',
+                suggestsMentions,
+            ) ?? (issue ? { kind: 'issue' as const, ...issue } : null);
+
+        if (
+            next?.kind === 'issue' &&
+            dismissedIssue.current === `${next.start}:${next.query}`
+        ) {
+            close();
+
+            return;
+        }
+
+        dismissedIssue.current = null;
 
         if (next === null) {
             setDismissedStart(null);
@@ -224,7 +276,7 @@ export function MentionTextarea({
         const controller = new AbortController();
         const timeout = setTimeout(
             () =>
-                fetchSuggestions(query, org, controller.signal)
+                fetchSuggestions(query, org, reply, quote, controller.signal)
                     .then((users) => setResults({ key, users }))
                     .catch(() => undefined),
             query === '' ? 0 : debounce,
@@ -234,7 +286,40 @@ export function MentionTextarea({
             clearTimeout(timeout);
             controller.abort();
         };
-    }, [key, query, org]);
+    }, [key, query, org, reply, quote]);
+
+    useEffect(() => {
+        if (issueQuery === null) {
+            return;
+        }
+
+        const controller = new AbortController();
+        const timeout = setTimeout(() => {
+            void fetch(issueSuggestions.url({ query: { q: issueQuery } }), {
+                headers: { Accept: 'application/json' },
+                signal: controller.signal,
+            })
+                .then(async (response) => {
+                    if (!response.ok) {
+                        return;
+                    }
+
+                    const data = (await response.json()) as {
+                        issue: IssueSuggestion | null;
+                    };
+
+                    if (!controller.signal.aborted) {
+                        setIssueResult(data.issue);
+                    }
+                })
+                .catch(() => undefined);
+        }, debounce);
+
+        return () => {
+            clearTimeout(timeout);
+            controller.abort();
+        };
+    }, [issueQuery]);
 
     useEffect(() => {
         if (token === null) {
@@ -304,6 +389,11 @@ export function MentionTextarea({
     const emojis = emoji === null ? [] : searchEmoji(emojiQuery);
     const isEmojiOpen =
         emoji !== null && position !== null && emojis.length > 0;
+    const isIssueOpen =
+        issueToken !== null &&
+        position !== null &&
+        issue !== null &&
+        !issueToken.complete;
 
     const insert = (text: string, separator: string) => {
         const textarea = textareaRef.current;
@@ -313,6 +403,16 @@ export function MentionTextarea({
         }
 
         const caret = token.start + 1 + token.query.length;
+
+        if (
+            token.kind === 'issue' &&
+            value.slice(token.start, caret) !== `#${token.query}`
+        ) {
+            close();
+
+            return;
+        }
+
         const after = value.slice(caret);
         const spacing = /^\s/u.test(after) ? '' : separator;
         let next = `${value.slice(0, token.start)}${text}${spacing}${after}`;
@@ -327,7 +427,10 @@ export function MentionTextarea({
             return;
         }
 
-        const nextCaret = token.start + text.length + separator.length;
+        const nextCaret =
+            token.kind === 'issue'
+                ? textarea.selectionStart + next.length - value.length
+                : token.start + text.length + separator.length;
 
         onValueChange(next);
         close();
@@ -345,6 +448,18 @@ export function MentionTextarea({
 
     const selectEmoji = (suggestion: EmojiSuggestion) =>
         insert(suggestion.emoji, '');
+
+    const autoLinkIssue = useEffectEvent(() => {
+        if (issueToken?.complete && issue) {
+            insert(issue.url, '');
+        }
+    });
+
+    useEffect(() => {
+        const frame = requestAnimationFrame(autoLinkIssue);
+
+        return () => cancelAnimationFrame(frame);
+    }, [issueToken, issue]);
 
     const runSlash = (option: SlashOption): boolean => {
         if (slash === null || !option.enabled) {
@@ -471,6 +586,29 @@ export function MentionTextarea({
         }
 
         if (
+            isIssueOpen &&
+            handleCaretMenuKeydown(event, {
+                count: 1,
+                activeIndex: 0,
+                setActiveIndex,
+                onSelect: () => {
+                    if (issue) {
+                        insert(issue.url, ' ');
+                    }
+                },
+                onClose: () => {
+                    if (issueToken !== null) {
+                        dismissedIssue.current = `${issueToken.start}:${issueToken.query}`;
+                    }
+
+                    close();
+                },
+            })
+        ) {
+            return;
+        }
+
+        if (
             isOpen &&
             handleCaretMenuKeydown(event, {
                 count: suggestions.length,
@@ -511,14 +649,16 @@ export function MentionTextarea({
         onKeyDown?.(event);
     };
 
-    const activeId = isOpen
-        ? suggestions[activeIndex] &&
-          `${id}-mention-${suggestions[activeIndex].id}`
-        : isSlashOpen && slashOptions[slashIndex]
-          ? `${id}-slash-${slashOptions[slashIndex].command.id}`
-          : isEmojiOpen && emojis[activeIndex]
-            ? `${id}-emoji-${emojis[activeIndex].name}`
-            : undefined;
+    const activeId = isIssueOpen
+        ? `${id}-issue-${issue?.number}`
+        : isOpen
+          ? suggestions[activeIndex] &&
+            `${id}-mention-${suggestions[activeIndex].id}`
+          : isSlashOpen && slashOptions[slashIndex]
+            ? `${id}-slash-${slashOptions[slashIndex].command.id}`
+            : isEmojiOpen && emojis[activeIndex]
+              ? `${id}-emoji-${emojis[activeIndex].name}`
+              : undefined;
 
     const isSearching = current?.key !== key;
 
@@ -541,6 +681,12 @@ export function MentionTextarea({
                             : limitCharacters(text, maxLength);
 
                     onValueChange(limited);
+
+                    if ((event.nativeEvent as InputEvent).isComposing) {
+                        close();
+
+                        return;
+                    }
 
                     if (limited === target.value) {
                         track(target);
@@ -565,16 +711,54 @@ export function MentionTextarea({
                 onKeyDown={handleKeyDown}
                 aria-autocomplete="list"
                 aria-controls={
-                    isOpen
-                        ? `${id}-mentions`
-                        : isSlashOpen
-                          ? `${id}-slash`
-                          : isEmojiOpen
-                            ? `${id}-emojis`
-                            : undefined
+                    isIssueOpen
+                        ? `${id}-issues`
+                        : isOpen
+                          ? `${id}-mentions`
+                          : isSlashOpen
+                            ? `${id}-slash`
+                            : isEmojiOpen
+                              ? `${id}-emojis`
+                              : undefined
                 }
                 aria-activedescendant={activeId}
             />
+
+            {isIssueOpen && position && issue && (
+                <CaretMenuPortal
+                    marker="issue"
+                    position={position}
+                    testId="issue-suggestions"
+                >
+                    <CaretMenuList
+                        id={`${id}-issues`}
+                        label="Link an issue or pull request"
+                        activeIndex={0}
+                    >
+                        <li
+                            id={`${id}-issue-${issue.number}`}
+                            role="option"
+                            aria-selected
+                            onClick={() => insert(issue.url, ' ')}
+                            className="cursor-pointer rounded-lg bg-accent px-2.5 py-2"
+                            data-test="issue-suggestion"
+                        >
+                            <span
+                                className="block truncate text-sm font-semibold"
+                                title={issue.title}
+                            >
+                                {issue.title}
+                            </span>
+                            <span
+                                className="block truncate font-mono text-xs text-muted-foreground"
+                                title={`${repository}#${issue.number}`}
+                            >
+                                {repository}#{issue.number}
+                            </span>
+                        </li>
+                    </CaretMenuList>
+                </CaretMenuPortal>
+            )}
 
             {isOpen && position && (
                 <CaretMenuPortal
@@ -588,14 +772,17 @@ export function MentionTextarea({
                             label="Mention a developer"
                             activeIndex={activeIndex}
                         >
-                            {current?.key === `${org ?? ''}:` && (
-                                <li
-                                    role="presentation"
-                                    className="px-2.5 pt-1 pb-1.5 text-xs text-muted-foreground"
-                                >
-                                    {org ? 'Members' : 'People you follow'}
-                                </li>
-                            )}
+                            {query === '' &&
+                                !reply &&
+                                !quote &&
+                                current?.key === key && (
+                                    <li
+                                        role="presentation"
+                                        className="px-2.5 pt-1 pb-1.5 text-xs text-muted-foreground"
+                                    >
+                                        {org ? 'Members' : 'People you follow'}
+                                    </li>
+                                )}
                             {suggestions.map((user, index) => (
                                 <li
                                     key={user.id}

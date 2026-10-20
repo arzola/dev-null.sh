@@ -6,7 +6,6 @@ use App\Actions\CreateCommitTranslation;
 use App\Actions\DeleteUser;
 use App\Ai\Agents\CommitTranslator;
 use App\Enums\NotificationType;
-use App\Models\Bookmark;
 use App\Models\Commit;
 use App\Models\CommitImage;
 use App\Models\Device;
@@ -54,6 +53,7 @@ it('downloads a versioned private JSON file with an explicit profile and empty l
         'has_sponsors_listing' => true,
         'preferred_lane' => 3,
         'timezone' => 'Europe/Budapest',
+        'translation_language' => 'ja',
         'lane_color' => '#1a2b3c',
         'pasteis_mode' => true,
         'pasteis_received' => 17,
@@ -92,6 +92,7 @@ it('downloads a versioned private JSON file with an explicit profile and empty l
             'has_sponsors_listing' => true,
             'preferred_lane' => 3,
             'timezone' => 'Europe/Budapest',
+            'translation_language' => 'ja',
             'lane_color' => '#1a2b3c',
             'pasteis_mode' => true,
             'pasteis_received' => 17,
@@ -112,7 +113,6 @@ it('downloads a versioned private JSON file with an explicit profile and empty l
         'polls' => [],
         'poll_votes' => [],
         'stars' => [],
-        'bookmarks' => [],
         'following' => [],
         'followers' => [],
         'muting' => [],
@@ -204,7 +204,7 @@ it('exports commit image urls in order', function (): void {
     ])->and($response->streamedContent())->not->toContain($first->path);
 });
 
-it('exports starred and saved commit ids, including deleted commits, but not other users stars or bookmarks', function (): void {
+it('exports starred commit ids, including deleted commits, but not other users stars', function (): void {
     $user = User::factory()->create();
     $other = User::factory()->create();
     $starred = Commit::factory()->for($other)->create();
@@ -212,16 +212,13 @@ it('exports starred and saved commit ids, including deleted commits, but not oth
     $saved = Commit::factory()->for($other)->create();
     $user->starredCommits()->attach([$starred->id, $deletedStarred->id]);
     $deletedStarred->delete();
-    Bookmark::factory()->create(['user_id' => $user->id, 'commit_id' => $saved->id]);
     $otherStarred = Commit::factory()->create();
     $other->starredCommits()->attach($otherStarred);
-    Bookmark::factory()->create(['user_id' => $other->id, 'commit_id' => $otherStarred->id]);
 
     $response = $this->actingAs($user)->get(route('export'));
     $data = json_decode($response->streamedContent(), true, flags: JSON_THROW_ON_ERROR);
 
     expect(collect($data['stars'])->sort()->values()->all())->toBe(collect([$starred->id, $deletedStarred->id])->sort()->values()->all())
-        ->and($data['bookmarks'])->toBe([$saved->id])
         ->and($response->streamedContent())->not->toContain($otherStarred->id, $saved->body, $starred->body);
 });
 
@@ -304,18 +301,20 @@ it('exports received notifications without revealing moderators', function (): v
         'commit_id' => $commit->id,
         'reason' => 'Looks like spam.',
     ]);
+    Notification::factory()->for($user, 'recipient')->leveledUp(3)->create();
     Notification::factory()->for($friend, 'recipient')->for($moderator, 'actor')->create();
 
     $response = $this->actingAs($user)->get(route('export'));
     $data = json_decode($response->streamedContent(), true, flags: JSON_THROW_ON_ERROR);
     $notifications = collect($data['notifications'])->keyBy('type');
 
-    expect($notifications)->toHaveCount(2)
+    expect($notifications)->toHaveCount(3)
         ->and($notifications['followed'])->toBe([
             'type' => 'followed',
             'actor' => 'friendly-dev',
             'commit_id' => null,
             'reason' => null,
+            'level' => null,
             'read_at' => now()->toIso8601String(),
             'created_at' => now()->toIso8601String(),
         ])
@@ -324,6 +323,16 @@ it('exports received notifications without revealing moderators', function (): v
             'actor' => null,
             'commit_id' => $commit->id,
             'reason' => 'Looks like spam.',
+            'level' => null,
+            'read_at' => null,
+            'created_at' => now()->toIso8601String(),
+        ])
+        ->and($notifications['leveled_up'])->toBe([
+            'type' => 'leveled_up',
+            'actor' => null,
+            'commit_id' => null,
+            'reason' => null,
+            'level' => 3,
             'read_at' => null,
             'created_at' => now()->toIso8601String(),
         ])
