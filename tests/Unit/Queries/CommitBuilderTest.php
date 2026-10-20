@@ -213,6 +213,7 @@ it('eager loads gifs on a keyed commit collection', function (): void {
 
     $keyed = Commit::query()
         ->whereIn('id', $commits->pluck('id'))
+        ->without('gif')
         ->get()
         ->keyBy('id');
 

@@ -65,7 +65,7 @@ final class CommitBuilder extends Builder
     /**
      * Only a commit with its id can be serialized, which is the only time the gif is read.
      *
-     * @param  array<int, Commit>  $models
+     * @param  array<array-key, Commit>  $models
      * @return array<int, Commit>
      */
     public function eagerLoadRelations(array $models): array
@@ -73,12 +73,12 @@ final class CommitBuilder extends Builder
         $eagerLoads = $this->getEagerLoads();
         $first = array_first($models);
 
-        if ($first instanceof Commit && ! array_key_exists('id', $first->getAttributes())) {
+        if ($first instanceof Commit && ! $this->hasEveryColumn($first)) {
             $this->without('gif');
         }
 
         try {
-            return parent::eagerLoadRelations($models);
+            return parent::eagerLoadRelations(array_values($models));
         } finally {
             $this->setEagerLoads($eagerLoads);
         }
@@ -339,6 +339,13 @@ final class CommitBuilder extends Builder
     /**
      * A bare * only stands for the commit's columns when no other table is joined in.
      */
+    private function hasEveryColumn(Commit $commit): bool
+    {
+        $attributes = $commit->getAttributes();
+
+        return array_all(self::COLUMNS_BUT_EMBEDDING, fn (string $column): bool => array_key_exists($column, $attributes));
+    }
+
     private function isEveryColumn(Expression|string $column): bool
     {
         return $this->query->from === $this->getModel()->getTable()
