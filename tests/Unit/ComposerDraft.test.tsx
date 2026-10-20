@@ -16,7 +16,8 @@ const gif: GifAttachment = {
     username: 'giphy',
     width: 480,
     height: 270,
-    previewUrl: 'https://media2.giphy.com/media/xT9IgzoKnwFNmISR8I/100.gif?cid=abc',
+    previewUrl:
+        'https://media2.giphy.com/media/xT9IgzoKnwFNmISR8I/100.gif?cid=abc',
 };
 let state: unknown[] = [];
 let cursor = 0;
@@ -38,6 +39,8 @@ const draft = {
     drop: vi.fn(),
 };
 const user = { id: 'viewer', username: 'viewer', lane: 1 };
+let flash: Record<string, unknown> = {};
+let effects: (() => void)[] = [];
 const http = {
     processing: false,
     transform: vi.fn(),
@@ -46,7 +49,9 @@ const http = {
 
 vi.doMock('react', () => ({
     ...React,
-    useEffect: (effect: () => void) => effect(),
+    useEffect: (effect: () => void) => {
+        effects.push(effect);
+    },
     useLayoutEffect: (effect: () => void | (() => void)) => effect(),
     useMemo: (factory: () => unknown) => factory(),
     useId: () => `preview-${cursor++}`,
@@ -80,6 +85,7 @@ vi.doMock('@inertiajs/react', async () => ({
             auth: { user, isAdmin: false },
             gif: { provider: 'giphy', key: 'test' },
         },
+        flash,
     }),
     useHttp: () => http,
 }));
@@ -135,9 +141,7 @@ function elements(node: ReactNode): Element[] {
 function render(errors: Record<string, string> = {}) {
     cursor = 0;
     const form = CommitComposer({});
-    const fields = elements(
-        form.props.children({ processing: false, errors }),
-    );
+    const fields = elements(form.props.children({ processing: false, errors }));
     return { form, fields };
 }
 
@@ -145,6 +149,8 @@ beforeEach(() => {
     vi.clearAllMocks();
     cancelImageReads('');
     state = [];
+    flash = {};
+    effects = [];
     draft.body = 'A restored draft https://example.com';
     draft.images = [];
     draft.descriptions = [];
@@ -221,6 +227,28 @@ test('surfaces gif validation errors and ignores unrelated ones', () => {
         ),
         false,
     );
+});
+
+test('drops a restored draft that the reloaded page says was already committed', () => {
+    draft.body = 'Shipped it :rocket:\n\n\n\nwith  spaces kept';
+    flash = {
+        committed: { id: 'commit', body: 'Shipped it 🚀\n\nwith  spaces kept' },
+    };
+    render();
+    effects.forEach((effect) => effect());
+
+    assert.equal(draft.drop.mock.calls.length, 1);
+});
+
+test('keeps a restored draft that is not the commit the page says was committed', () => {
+    flash = { committed: { id: 'commit', body: 'Another commit' } };
+    render();
+    effects.forEach((effect) => effect());
+    flash = {};
+    render();
+    effects.forEach((effect) => effect());
+
+    assert.equal(draft.drop.mock.calls.length, 0);
 });
 
 test('removing restored images enables polls and successful posting resets the poll', () => {
@@ -474,8 +502,7 @@ test('picking a gif clears attached images and any poll and submits the gif fiel
     try {
         (
             view.fields.find(
-                (element) =>
-                    element.props['data-test'] === 'add-poll-button',
+                (element) => element.props['data-test'] === 'add-poll-button',
             )!.props.onClick as () => void
         )();
         view = render();
@@ -529,8 +556,8 @@ test('attaching images while a gif is stashed clears the gif and submits the ima
         true,
     );
     const picked = (
-        view.fields.find((element) => element.type === ImagePickerButton)!
-            .props.onPick as (files: File[]) => Promise<void>
+        view.fields.find((element) => element.type === ImagePickerButton)!.props
+            .onPick as (files: File[]) => Promise<void>
     )([image]);
     picked.catch(() => undefined);
     assert.equal(draft.gif, null);
@@ -552,6 +579,7 @@ test('a stashed gif never survives alongside restored images', () => {
     draft.descriptions = ['A restored screenshot'];
     draft.updateGif(gif);
     const view = render();
+    effects.forEach((effect) => effect());
     assert.deepEqual(draft.updateGif.mock.lastCall, [null]);
     assert.equal(draft.gif, null);
     assert.deepEqual(view.form.props.transform({ body: draft.body }), {
@@ -571,9 +599,8 @@ test('a gif stashed while scheduling blocks submit and never reaches the transfo
     view = render();
     const date = '2026-10-17T10:30';
     (
-        view.fields.find(
-            (element) => element.props.id === 'body-scheduled-at',
-        )!.props.onChange as (value: string) => void
+        view.fields.find((element) => element.props.id === 'body-scheduled-at')!
+            .props.onChange as (value: string) => void
     )(date);
     view = render();
     draft.updateGif(gif);
@@ -775,6 +802,44 @@ test('a draft that mentions a bug suggests /bug, keeps the text when used, and c
     );
 });
 
+test('switching a discounted commit to an issue enforces the literal limit for the button and shortcut', () => {
+    draft.body =
+        'bug ' + 'a'.repeat(3972) + ' https://example.com/long-path-here';
+    let view = render();
+    assert.equal(
+        view.fields.find(
+            (element) => element.props['data-test'] === 'create-commit-button',
+        )!.props.disabled,
+        false,
+    );
+    const hint = view.fields.find(
+        (element) => element.type === IssueCommandHint,
+    )!;
+    vi.stubGlobal('requestAnimationFrame', vi.fn());
+    try {
+        (hint.props.onUse as (kind: string) => void)('bug');
+        view = render();
+        keyDown(view, 'Enter', { metaKey: true });
+        assert.equal(http.submit.mock.calls.length, 0);
+        assert.equal(
+            view.fields.find(
+                (element) => element.props['data-test'] === 'open-issue-button',
+            )!.props.disabled,
+            true,
+        );
+
+        draft.body = 'a'.repeat(3965) + ' https://example.com/long-path-here';
+        assert.equal(
+            render().fields.find(
+                (element) => element.props['data-test'] === 'open-issue-button',
+            )!.props.disabled,
+            false,
+        );
+    } finally {
+        vi.unstubAllGlobals();
+    }
+});
+
 test('commands are not offered while the draft has images, a poll or a schedule', () => {
     draft.images = [image];
     draft.body = '/';
@@ -876,4 +941,17 @@ test('picker clears its selection before a pending read finishes so the same fil
 
     reads.forEach((resolve) => resolve());
     await Promise.all([first, retry]);
+});
+
+test('ignores further submits while a commit is being posted', () => {
+    draft.body = 'A commit that is posted once';
+    draft.images = [];
+    draft.descriptions = [];
+    const { form } = render();
+
+    assert.equal(form.props.onBefore(), true);
+    form.props.onStart();
+    assert.equal(form.props.onBefore(), false);
+    form.props.onFinish();
+    assert.equal(form.props.onBefore(), true);
 });

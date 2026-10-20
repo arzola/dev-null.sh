@@ -9,8 +9,11 @@ use App\Models\User;
 use Illuminate\Auth\Access\Response;
 use Illuminate\Foundation\Http\FormRequest;
 
-final class DeleteApiBookmarkRequest extends FormRequest
+final class ListCommitStarsRequest extends FormRequest
 {
+    /**
+     * Only authors see who starred their commit, as everyone else only sees how many did.
+     */
     public function authorize(): Response
     {
         $user = $this->user();
@@ -19,7 +22,7 @@ final class DeleteApiBookmarkRequest extends FormRequest
         $commit = $this->route('commit');
         assert($commit instanceof Commit);
 
-        return $commit->isVisibleTo($user) ? Response::allow() : Response::denyAsNotFound();
+        return $commit->user_id === $user->id ? Response::allow() : Response::denyAsNotFound();
     }
 
     /**

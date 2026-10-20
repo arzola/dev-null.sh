@@ -32,7 +32,12 @@ import { useSecretWarning } from '@/hooks/use-secret-warning';
 import { moveCaretToEnd, useHasStash, useStash } from '@/hooks/use-stash';
 import { useUser } from '@/hooks/use-user';
 import { signIn } from '@/lib/auth';
-import { maxBodyLength, minBodyLength } from '@/lib/commit';
+import {
+    bodyCharacterCount,
+    maxBodyLength,
+    maxRawBodyLength,
+    minBodyLength,
+} from '@/lib/commit';
 import { gifFormFields } from '@/lib/gif-providers';
 import { hasModKey, useKeyLabels } from '@/lib/keyboard';
 import { characterCount, cn, isRejectedSubmission } from '@/lib/utils';
@@ -141,7 +146,8 @@ function QuoteComposer({
     }, [attachments.images.length, gif, updateGif]);
 
     const isQuotable =
-        images.length > 0 || characterCount(body.trim()) >= minBodyLength;
+        (images.length > 0 || characterCount(body.trim()) >= minBodyLength) &&
+        bodyCharacterCount(body) <= maxBodyLength;
 
     const submitOnModEnter = (event: KeyboardEvent<HTMLTextAreaElement>) => {
         if (
@@ -236,6 +242,7 @@ function QuoteComposer({
                             <MentionTextarea
                                 ref={textareaRef}
                                 id={id}
+                                quote={commit.id}
                                 name="body"
                                 rows={1}
                                 autoFocus
@@ -246,7 +253,7 @@ function QuoteComposer({
                                 onFocus={
                                     isRestored ? moveCaretToEnd : undefined
                                 }
-                                maxLength={maxBodyLength}
+                                maxLength={maxRawBodyLength}
                                 placeholder="Add your take"
                                 autoComplete="off"
                                 aria-invalid={

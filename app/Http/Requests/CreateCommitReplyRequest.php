@@ -50,7 +50,7 @@ final class CreateCommitReplyRequest extends FormRequest
         $provider = is_string($rawProvider) ? (GifProvider::tryFrom($rawProvider) ?? GifProvider::Giphy) : GifProvider::Giphy;
 
         return [
-            'body' => $this->hasFile('images') ? CreateCommitRequest::BODY_WITH_IMAGES_RULES : CreateCommitRequest::BODY_RULES,
+            'body' => CreateCommitRequest::bodyRules($this->hasFile('images')),
             'link_preview_url' => ['nullable', 'string', Rule::in(is_string($body) ? resolve(Urls::class)->all($body) : [])],
             'images' => ['nullable', 'list', 'max:'.CreateCommitImages::MAX_IMAGES],
             'images.*' => [

@@ -11,6 +11,7 @@ use App\Enums\GifProvider;
 use App\Enums\PollDuration;
 use App\Models\Commit;
 use App\Models\User;
+use App\Rules\CommitBodyLength;
 use App\Rules\GifMediaUrl;
 use App\Rules\GifPageUrl;
 use App\Rules\VisibleCommit;
@@ -27,15 +28,18 @@ use Illuminate\Validation\Rules\In;
 
 final class CreateCommitRequest extends FormRequest
 {
-    public const array BODY_RULES = ['required', 'string', 'min:'.Commit::MIN_BODY_LENGTH, 'max:'.Commit::MAX_BODY_LENGTH];
-
     /**
-     * Images say enough on their own, so a commit with images may have a body of any length, or none at all.
+     * Images make text optional. Bound the raw body before parsing links to limit storage and processing costs.
+     *
+     * @return list<string|ValidationRule>
      */
-    public const array BODY_WITH_IMAGES_RULES = ['nullable', 'string', 'max:'.Commit::MAX_BODY_LENGTH];
+    public static function bodyRules(bool $hasImages = false): array
+    {
+        return ['bail', $hasImages ? 'nullable' : 'required', 'string', 'min:'.Commit::MIN_BODY_LENGTH, 'max:'.CommitBodyLength::MAX_RAW_LENGTH, new CommitBodyLength];
+    }
 
     /**
-     * Blank lines are collapsed before the body is measured, by every request that takes a body with BODY_RULES.
+     * Blank lines are collapsed before the body is measured, by every request that takes a commit body.
      */
     public static function normalizeBody(FormRequest $request): void
     {
@@ -107,7 +111,7 @@ final class CreateCommitRequest extends FormRequest
         $provider = is_string($rawProvider) ? (GifProvider::tryFrom($rawProvider) ?? GifProvider::Giphy) : GifProvider::Giphy;
 
         return [
-            'body' => $this->hasFile('images') ? self::BODY_WITH_IMAGES_RULES : self::BODY_RULES,
+            'body' => self::bodyRules($this->hasFile('images')),
             'quoted_commit_id' => ['nullable', 'uuid', 'prohibits:parent_id', new VisibleCommit($user, 'That commit is no longer available to quote.')],
             'link_preview_url' => ['nullable', 'string', Rule::in(is_string($body) ? resolve(Urls::class)->all($body) : [])],
             ...self::attachmentRules($provider),

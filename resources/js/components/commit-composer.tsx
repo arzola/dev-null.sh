@@ -52,7 +52,13 @@ import {
     useStash,
 } from '@/hooks/use-stash';
 import { useUser } from '@/hooks/use-user';
-import { maxBodyLength, minBodyLength } from '@/lib/commit';
+import {
+    bodyCharacterCount,
+    isSavedAs,
+    maxBodyLength,
+    maxRawBodyLength,
+    minBodyLength,
+} from '@/lib/commit';
 import { gifFormFields, toCommitGif } from '@/lib/gif-providers';
 import type { GifAttachment } from '@/lib/gif-providers';
 import { hasModKey, useKeyLabels } from '@/lib/keyboard';
@@ -137,7 +143,11 @@ function CommitComposerBody({
     } = schedule;
     const hasImages = attachments.images.length > 0;
     const isSchedulingGif = isScheduling && stash.gif !== null;
-    const progress = bodyProgress(characterCount(body));
+    const progress = bodyProgress(
+        issue.command !== null
+            ? characterCount(body)
+            : bodyCharacterCount(body),
+    );
     const isFilled = hasImages || characterCount(body.trim()) >= minBodyLength;
     const error = errors.body ?? errors.link_preview_url;
     const scheduleError =
@@ -266,7 +276,9 @@ function CommitComposerBody({
                                 }
                             }}
                             onBlur={issue.blur}
-                            maxLength={maxBodyLength}
+                            maxLength={
+                                isIssue ? maxBodyLength : maxRawBodyLength
+                            }
                             placeholder={
                                 issue.command?.placeholder ??
                                 (poll ? 'Ask a question' : 'What did you ship?')
@@ -542,6 +554,7 @@ function CommitComposerBody({
                         <BodyCounter
                             id={`${id}-count`}
                             body={body}
+                            isIssue={isIssue}
                             className="text-[13px]"
                         />
                         {isIssue ? (
@@ -629,20 +642,9 @@ export function CommitComposer({
     );
     const [poll, setPoll] = useState<PollDraft | null>(null);
     const secrets = useSecretWarning(body);
+    const isPosting = useRef(false);
 
     const hasImages = attachments.images.length > 0;
-    const isCommittable =
-        !attachments.reading &&
-        (hasImages || characterCount(body.trim()) >= minBodyLength) &&
-        (poll === null ||
-            poll.options.every((option) => option.trim().length > 0)) &&
-        !(isScheduling && stash.gif !== null);
-
-    const isSubmittable =
-        isCommittable &&
-        (!isScheduling ||
-            (scheduledAt !== '' && isExistingLocalTime(scheduledAt)));
-
     const issue = useIssueCommand({
         body,
         updateBody: stash.updateBody,
@@ -658,6 +660,21 @@ export function CommitComposer({
         },
     });
 
+    const isCommittable =
+        !attachments.reading &&
+        (hasImages || characterCount(body.trim()) >= minBodyLength) &&
+        (issue.command !== null
+            ? characterCount(body)
+            : bodyCharacterCount(body)) <= maxBodyLength &&
+        (poll === null ||
+            poll.options.every((option) => option.trim().length > 0)) &&
+        !(isScheduling && stash.gif !== null);
+
+    const isSubmittable =
+        isCommittable &&
+        (!isScheduling ||
+            (scheduledAt !== '' && isExistingLocalTime(scheduledAt)));
+
     useEffect(() => discardSeriesStash(user.id), [user.id]);
 
     useEffect(() => {
@@ -665,6 +682,16 @@ export function CommitComposer({
             stash.updateGif(null);
         }
     }, [attachments.images.length, stash]);
+
+    const { committed } = usePage().flash;
+
+    // A deploy reloads the page before onSuccess can drop the draft, so the reloaded page names the commit it became.
+    useEffect(() => {
+        if (committed !== undefined && isSavedAs(body, committed.body)) {
+            drop();
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     const onKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
         if (
@@ -694,10 +721,17 @@ export function CommitComposer({
                 ? ScheduledCommitController.store.form()
                 : CommitController.store.form())}
             onBefore={() =>
+                !isPosting.current &&
                 !attachments.isReading() &&
                 issue.command === null &&
                 secrets.beforeSubmit()
             }
+            onStart={() => {
+                isPosting.current = true;
+            }}
+            onFinish={() => {
+                isPosting.current = false;
+            }}
             transform={(data) => ({
                 ...data,
                 ...(hasImages && {
