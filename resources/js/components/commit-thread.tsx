@@ -18,7 +18,6 @@ import { FoldedCommitBody } from '@/components/commit-body';
 import { CommitGif } from '@/components/commit-gif';
 import {
     ImageDropOverlay,
-    ImagePickerButton,
     ImagePickerPreviews,
     imageErrorFrom,
 } from '@/components/commit-image-picker';
@@ -28,13 +27,13 @@ import { CommitSecondaryActions } from '@/components/commit-secondary-actions';
 import { CommitStarButton } from '@/components/commit-star-button';
 import { CommitStatusBadge } from '@/components/commit-status-badge';
 import { useCommitTranslation } from '@/components/commit-translation';
+import { ComposerMediaButton } from '@/components/composer-media-button';
 import {
     ComposerPreviewBody,
     PreviewToggle,
     useComposerPreview,
 } from '@/components/composer-preview';
 import { GifAttachmentPreview } from '@/components/gif-attachment-preview';
-import { GifPickerButton } from '@/components/gif-picker-button';
 import { RailDot } from '@/components/graph-rail';
 import InputError from '@/components/input-error';
 import { LinkCardPicker } from '@/components/link-card-picker';
@@ -55,6 +54,7 @@ import {
     useCommitNotFound,
     useIsCommitDeleted,
 } from '@/hooks/use-deleted-resources';
+import { useGifProviderKey } from '@/hooks/use-gif-provider-key';
 import { useImageAttachments } from '@/hooks/use-image-attachments';
 import { focusCommit } from '@/hooks/use-keyboard-shortcuts';
 import { useLinkCard } from '@/hooks/use-link-card';
@@ -1220,6 +1220,8 @@ function ReplyComposer({
     onReplied: (parent: RepliedParent) => void;
 }) {
     const { user } = useUser();
+    const gifKey = useGifProviderKey(user.id);
+    const [gifOpen, setGifOpen] = useState(false);
     const commitNotFound = useCommitNotFound();
     const {
         body,
@@ -1439,24 +1441,23 @@ function ReplyComposer({
             />
             <div className="mt-1.5 flex flex-wrap items-center justify-end gap-x-2 gap-y-1">
                 <div className="mr-auto flex min-w-0 items-center gap-2">
-                    <ImagePickerButton
+                    <ComposerMediaButton
+                        gifKey={gifKey}
+                        gifOpen={gifOpen}
+                        onGifOpenChange={setGifOpen}
+                        hasGif={gif !== null}
                         count={images.length}
                         disabled={processing}
                         reading={attachments.reading}
-                        onPick={(files) => {
+                        onPickImages={(files) => {
                             updateGif(null);
                             return attachments.pick(files);
                         }}
-                        className="size-8"
-                    />
-                    <GifPickerButton
-                        disabled={processing}
-                        hasGif={gif !== null}
-                        onPick={(picked) => {
+                        onPickGif={(picked) => {
                             attachments.clear();
                             updateGif(picked);
                         }}
-                        className="-ml-2 size-8"
+                        className="size-8"
                     />
                     <PreviewToggle preview={preview} className="-ml-2 size-8" />
                     <LinkCardPicker

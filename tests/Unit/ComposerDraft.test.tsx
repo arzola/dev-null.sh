@@ -5,6 +5,7 @@ import type { ReactElement, ReactNode } from 'react';
 import { beforeEach, test, vi } from 'vite-plus/test';
 import { cancelImageReads } from '../../resources/js/lib/draft-image-reads';
 import type { GifAttachment } from '../../resources/js/lib/gif-providers/types';
+import type { GifProviderKey } from '../../resources/js/lib/gif-provider-key';
 
 const image = new File(['restored'], 'draft.png', { type: 'image/png' });
 const gif: GifAttachment = {
@@ -97,6 +98,10 @@ vi.doMock('../../resources/js/hooks/use-stash', () => ({
     moveCaretToEnd: vi.fn(),
     discardSeriesStash: vi.fn(),
 }));
+let gifKey: GifProviderKey | null = null;
+vi.doMock('../../resources/js/hooks/use-gif-provider-key', () => ({
+    useGifProviderKey: () => gifKey,
+}));
 
 const { CommitComposer } =
     await import('../../resources/js/components/commit-composer');
@@ -106,8 +111,8 @@ const { IssueCommandBadge, IssueCommandHint, IssueCommandSuggestions } =
     await import('../../resources/js/components/issue-command');
 const { ImageDropOverlay, ImagePickerButton, ImagePickerPreviews } =
     await import('../../resources/js/components/commit-image-picker');
-const { GifPickerButton } =
-    await import('../../resources/js/components/gif-picker-button');
+const { ComposerMediaButton } =
+    await import('../../resources/js/components/composer-media-button');
 const { ComposerPreviewBody, PreviewToggle } =
     await import('../../resources/js/components/composer-preview');
 const { MentionTextarea } =
@@ -155,6 +160,7 @@ beforeEach(() => {
     draft.images = [];
     draft.descriptions = [];
     draft.gif = null;
+    gifKey = null;
 });
 
 test('preserves restored images and link cards and allows scheduling them', () => {
@@ -175,7 +181,7 @@ test('preserves restored images and link cards and allows scheduling them', () =
     )!;
     assert.deepEqual(preview.props.images, [image]);
     const picker = fields.find(
-        (element) => element.type === ImagePickerButton,
+        (element) => element.type === ComposerMediaButton,
     )!;
     assert.equal(picker.props.count, 1);
     const schedule = fields.find(
@@ -279,7 +285,7 @@ test('removing restored images enables polls and successful posting resets the p
             )!;
         assert.equal(submit().props.disabled, true);
         assert.equal(
-            view.fields.find((element) => element.type === ImagePickerButton)!
+            view.fields.find((element) => element.type === ComposerMediaButton)!
                 .props.disabled,
             true,
         );
@@ -400,7 +406,7 @@ test('schedules in UTC with pasted images and the chosen link card', () => {
         scheduled_at: scheduledAt,
     });
     assert.equal(
-        view.fields.some((element) => element.type === ImagePickerButton),
+        view.fields.some((element) => element.type === ComposerMediaButton),
         true,
     );
     assert.equal(
@@ -511,9 +517,9 @@ test('picking a gif clears attached images and any poll and submits the gif fiel
             true,
         );
         const gifButton = view.fields.find(
-            (element) => element.type === GifPickerButton,
+            (element) => element.type === ComposerMediaButton,
         )!;
-        (gifButton.props.onPick as (picked: GifAttachment) => void)(gif);
+        (gifButton.props.onPickGif as (picked: GifAttachment) => void)(gif);
         assert.deepEqual(draft.images, []);
         assert.deepEqual(draft.descriptions, []);
         assert.equal(draft.gif, gif);
@@ -556,8 +562,8 @@ test('attaching images while a gif is stashed clears the gif and submits the ima
         true,
     );
     const picked = (
-        view.fields.find((element) => element.type === ImagePickerButton)!.props
-            .onPick as (files: File[]) => Promise<void>
+        view.fields.find((element) => element.type === ComposerMediaButton)!
+            .props.onPickImages as (files: File[]) => Promise<void>
     )([image]);
     picked.catch(() => undefined);
     assert.equal(draft.gif, null);
@@ -702,7 +708,7 @@ test('typing a command and a space turns the draft into an issue, and backspace 
     assert.ok(find('data-test', 'open-issue-button'));
     assert.equal(find('data-test', 'create-commit-button'), undefined);
     assert.equal(
-        view.fields.some((element) => element.type === ImagePickerButton),
+        view.fields.some((element) => element.type === ComposerMediaButton),
         false,
     );
     assert.equal(find('data-test', 'add-poll-button'), undefined);
@@ -720,6 +726,57 @@ test('typing a command and a space turns the draft into an issue, and backspace 
         ),
     );
     assert.equal(view.form.props.onBefore(), true);
+});
+
+test('a lone /gif opens the GIF picker without becoming an issue draft', () => {
+    gifKey = { provider: 'giphy', key: 'test-key' };
+    draft.body = '/';
+    focus(render());
+    const view = render();
+    const suggestions = view.fields.find(
+        (element) => element.type === IssueCommandSuggestions,
+    )!;
+    assert.deepEqual(
+        (suggestions.props.suggestions as { name: string }[]).map(
+            (command) => command.name,
+        ),
+        ['/feature', '/bug', '/gif'],
+    );
+
+    const textarea = view.fields.find(
+        (element) => element.type === MentionTextarea,
+    )!;
+    (textarea.props.onValueChange as (value: string) => void)('/gif ');
+
+    assert.deepEqual(draft.updateBody.mock.calls.at(-1), ['']);
+
+    const next = render();
+    assert.equal(
+        next.fields.find((element) => element.type === ComposerMediaButton)!
+            .props.gifOpen,
+        true,
+    );
+    assert.equal(
+        next.fields.some((element) => element.type === IssueCommandBadge),
+        false,
+    );
+});
+
+test('a stashed gif removes /gif from the slash suggestions', () => {
+    gifKey = { provider: 'giphy', key: 'test-key' };
+    draft.gif = gif;
+    draft.body = '/';
+    focus(render());
+    const view = render();
+    const suggestions = view.fields.find(
+        (element) => element.type === IssueCommandSuggestions,
+    )!;
+    assert.deepEqual(
+        (suggestions.props.suggestions as { name: string }[]).map(
+            (command) => command.name,
+        ),
+        ['/feature', '/bug'],
+    );
 });
 
 test('picking a suggestion with Enter starts an empty issue, and the shortcut opens it instead of committing', () => {

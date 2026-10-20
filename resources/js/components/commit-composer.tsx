@@ -9,10 +9,10 @@ import { BodyCounter } from '@/components/body-counter';
 import { CommitGif } from '@/components/commit-gif';
 import {
     ImageDropOverlay,
-    ImagePickerButton,
     ImagePickerPreviews,
     imageErrorFrom,
 } from '@/components/commit-image-picker';
+import { ComposerMediaButton } from '@/components/composer-media-button';
 import {
     ComposerPollPreview,
     ComposerPreviewBody,
@@ -20,7 +20,6 @@ import {
     useComposerPreview,
 } from '@/components/composer-preview';
 import { GifAttachmentPreview } from '@/components/gif-attachment-preview';
-import { GifPickerButton } from '@/components/gif-picker-button';
 import { GraphRail, RailAvatar } from '@/components/graph-rail';
 import InputError from '@/components/input-error';
 import type { UseIssueCommandReturn } from '@/components/issue-command';
@@ -41,6 +40,7 @@ import {
 import { SecretWarning } from '@/components/secret-warning';
 import { StashLabel } from '@/components/stash-label';
 import { Button } from '@/components/ui/button';
+import { useGifProviderKey } from '@/hooks/use-gif-provider-key';
 import { useImageAttachments } from '@/hooks/use-image-attachments';
 import { useLinkCard } from '@/hooks/use-link-card';
 import type { UseLinkCardReturn } from '@/hooks/use-link-card';
@@ -59,6 +59,7 @@ import {
     maxRawBodyLength,
     minBodyLength,
 } from '@/lib/commit';
+import type { GifProviderKey } from '@/lib/gif-provider-key';
 import { gifFormFields, toCommitGif } from '@/lib/gif-providers';
 import type { GifAttachment } from '@/lib/gif-providers';
 import { hasModKey, useKeyLabels } from '@/lib/keyboard';
@@ -112,6 +113,9 @@ function CommitComposerBody({
     errors,
     onKeyDown,
     drop,
+    gifKey,
+    gifOpen,
+    onGifOpenChange,
 }: {
     id: string;
     isInDialog: boolean;
@@ -129,6 +133,9 @@ function CommitComposerBody({
     errors: Record<string, string>;
     onKeyDown: (event: KeyboardEvent<HTMLTextAreaElement>) => void;
     drop: () => void;
+    gifKey: GifProviderKey | null;
+    gifOpen: boolean;
+    onGifOpenChange: (open: boolean) => void;
 }) {
     const keys = useKeyLabels();
     const { body, isRestored, updateBody } = stash;
@@ -440,26 +447,22 @@ function CommitComposerBody({
                         <div className="flex min-w-0 flex-1 items-center gap-x-1 max-sm:basis-full">
                             {!isIssue && (
                                 <>
-                                    <ImagePickerButton
+                                    <ComposerMediaButton
+                                        gifKey={gifKey}
+                                        gifOpen={gifOpen}
+                                        onGifOpenChange={onGifOpenChange}
+                                        hasGif={stash.gif !== null}
+                                        gifDisabled={isScheduling}
                                         count={attachments.images.length}
                                         disabled={processing || poll !== null}
                                         reading={attachments.reading}
-                                        onPick={(files) => {
+                                        onPickImages={(files) => {
                                             stash.updateGif(null);
                                             return attachments.pick(files);
                                         }}
+                                        onPickGif={pickGif}
                                         className="-ml-2"
                                     />
-                                    {!isScheduling && (
-                                        <GifPickerButton
-                                            disabled={
-                                                processing || poll !== null
-                                            }
-                                            hasGif={stash.gif !== null}
-                                            onPick={pickGif}
-                                            className="-ml-3"
-                                        />
-                                    )}
                                     <ActionTooltip
                                         label={
                                             hasImages
@@ -641,6 +644,8 @@ export function CommitComposer({
         stash.key,
     );
     const [poll, setPoll] = useState<PollDraft | null>(null);
+    const gifKey = useGifProviderKey(user.id);
+    const [gifOpen, setGifOpen] = useState(false);
     const secrets = useSecretWarning(body);
     const isPosting = useRef(false);
 
@@ -654,6 +659,8 @@ export function CommitComposer({
             poll === null &&
             !isScheduling,
         hasSecrets: secrets.findings.length > 0,
+        canAttachGif: gifKey !== null && stash.gif === null,
+        onAttachGif: () => setGifOpen(true),
         onCreated: () => {
             drop();
             focusBody(id);
@@ -786,6 +793,9 @@ export function CommitComposer({
                         errors={errors}
                         onKeyDown={onKeyDown}
                         drop={drop}
+                        gifKey={gifKey}
+                        gifOpen={gifOpen}
+                        onGifOpenChange={setGifOpen}
                     />
                 </fieldset>
             )}

@@ -83,11 +83,8 @@ const provider: GifProvider = {
 const { GifPickerDialog } = await import(
     '../../resources/js/components/gif-picker-dialog'
 );
-const { GifPickerButton } = await import(
-    '../../resources/js/components/gif-picker-button'
-);
-const { writeGifProviderKey } = await import(
-    '../../resources/js/lib/gif-provider-key'
+const { ComposerMediaButton } = await import(
+    '../../resources/js/components/composer-media-button'
 );
 const { gifProviderFor } = await import(
     '../../resources/js/lib/gif-providers'
@@ -265,15 +262,38 @@ test('loads more with the cursor from the previous page', async () => {
     assert.ok(options?.signal instanceof AbortSignal);
 });
 
-test('renders nothing when no gif provider key is stored', () => {
-    assert.equal(GifPickerButton({ hasGif: false, onPick: vi.fn() }), null);
+test('renders no GIF dialog without a provider key and keeps the image picker working', () => {
+    const fields = elements(
+        ComposerMediaButton({
+            gifKey: null,
+            gifOpen: false,
+            onGifOpenChange: vi.fn(),
+            hasGif: false,
+            count: 0,
+            onPickImages: vi.fn(async () => {}),
+            onPickGif: vi.fn(),
+        }) as ReactElement,
+    );
+
+    assert.equal(
+        fields.some((element) => element.props.apiKey !== undefined),
+        false,
+    );
+    assert.ok(field(fields, 'attach-images-button'));
 });
 
-test('opens the picker with the stored provider and key', () => {
-    writeGifProviderKey('user-1', { provider: 'klipy', key: 'stored-key' });
-
+test('opens the picker with the stored provider and key through one media trigger', () => {
+    const onGifOpenChange = vi.fn();
     const fields = elements(
-        GifPickerButton({ hasGif: false, onPick: vi.fn() }) as ReactElement,
+        ComposerMediaButton({
+            gifKey: { provider: 'klipy', key: 'stored-key' },
+            gifOpen: false,
+            onGifOpenChange,
+            hasGif: false,
+            count: 0,
+            onPickImages: vi.fn(async () => {}),
+            onPickGif: vi.fn(),
+        }) as ReactElement,
     );
     const dialog = fields.find(
         (element) => element.props.apiKey === 'stored-key',
@@ -282,5 +302,17 @@ test('opens the picker with the stored provider and key', () => {
     assert.ok(dialog);
     assert.equal(dialog.props.provider, gifProviderFor('klipy'));
     assert.equal(dialog.props.open, false);
+    assert.ok(field(fields, 'attach-media-button'));
+    assert.ok(field(fields, 'attach-images-button'));
     assert.ok(field(fields, 'attach-gif-button'));
+
+    const preventDefault = vi.fn();
+    (
+        field(fields, 'attach-gif-button').props.onSelect as (event: {
+            preventDefault: () => void;
+        }) => void
+    )({ preventDefault });
+
+    assert.deepEqual(onGifOpenChange.mock.calls, [[true]]);
+    assert.equal(preventDefault.mock.calls.length, 0);
 });
