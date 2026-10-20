@@ -1041,6 +1041,17 @@ it('rejects a reply gif url from another provider', function (): void {
     $response->assertUnprocessable()->assertJsonValidationErrors('gif_url');
 });
 
+it('rejects a partial gif submission on a reply', function (): void {
+    $user = User::factory()->create();
+    $parent = Commit::factory()->create();
+
+    $this->actingAs($user)->post(route('commit-reply.store', $parent), [
+        'body' => 'Half a gif',
+        'gif_provider' => 'giphy',
+        'gif_id' => 'xT9IgzoKnwFNmISR8I',
+    ])->assertSessionHasErrors(['gif_url', 'gif_page_url', 'gif_width', 'gif_height']);
+});
+
 it('rejects a reply gif alongside uploaded images', function (): void {
     Storage::fake();
 

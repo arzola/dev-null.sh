@@ -53,7 +53,7 @@ import {
 } from '@/hooks/use-stash';
 import { useUser } from '@/hooks/use-user';
 import { maxBodyLength, minBodyLength } from '@/lib/commit';
-import { gifFormFields } from '@/lib/gif-providers';
+import { gifFormFields, toCommitGif } from '@/lib/gif-providers';
 import type { GifAttachment } from '@/lib/gif-providers';
 import { hasModKey, useKeyLabels } from '@/lib/keyboard';
 import {
@@ -294,9 +294,7 @@ function CommitComposerBody({
                     </div>
 
                     {preview.isPreviewing && stash.gif !== null && (
-                        <CommitGif
-                            gif={{ ...stash.gif, page_url: stash.gif.pageUrl }}
-                        />
+                        <CommitGif gif={toCommitGif(stash.gif)} />
                     )}
 
                     {issue.hint && (
@@ -666,7 +664,7 @@ export function CommitComposer({
         if (attachments.images.length > 0 && stash.gif !== null) {
             stash.updateGif(null);
         }
-    }, [attachments.images.length, stash.gif, stash.updateGif]);
+    }, [attachments.images.length, stash]);
 
     const onKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
         if (

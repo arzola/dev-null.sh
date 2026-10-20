@@ -9,8 +9,6 @@ use App\Dto\Gif;
 use App\Enums\GifProvider;
 use App\Models\Commit;
 use App\Models\User;
-use App\Rules\GifMediaUrl;
-use App\Rules\GifPageUrl;
 use App\Services\Urls;
 use Illuminate\Auth\Access\Response;
 use Illuminate\Contracts\Validation\ValidationRule;
@@ -65,14 +63,7 @@ final class CreateCommitReplyRequest extends FormRequest
             ],
             'image_descriptions' => ['nullable', 'list', 'max:'.CreateCommitImages::MAX_IMAGES],
             'image_descriptions.*' => ['nullable', 'string', 'max:'.CreateCommitImages::MAX_DESCRIPTION_LENGTH],
-            'gif_provider' => ['nullable', 'string', Rule::enum(GifProvider::class), 'required_with:gif_id'],
-            'gif_id' => ['nullable', 'string', 'max:64', 'regex:/^[A-Za-z0-9-]+$/', 'prohibits:images,poll', 'required_with:gif_url'],
-            'gif_url' => ['nullable', 'string', 'max:2048', 'required_with:gif_id', new GifMediaUrl($provider)],
-            'gif_page_url' => ['nullable', 'string', 'max:2048', 'required_with:gif_id', new GifPageUrl($provider)],
-            'gif_title' => ['nullable', 'string', 'max:300'],
-            'gif_username' => ['nullable', 'string', 'max:100'],
-            'gif_width' => ['nullable', 'integer', 'min:1', 'max:10000', 'required_with:gif_id'],
-            'gif_height' => ['nullable', 'integer', 'min:1', 'max:10000', 'required_with:gif_id'],
+            ...CreateCommitRequest::gifRules($provider),
         ];
     }
 

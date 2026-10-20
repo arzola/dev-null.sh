@@ -55,8 +55,8 @@ export type CommitGif = {
     page_url: string;
     title: string | null;
     username: string | null;
-    width: number | null;
-    height: number | null;
+    width: number;
+    height: number;
 };
 
 export type BodySegment =

@@ -66,7 +66,7 @@ import { useUser } from '@/hooks/use-user';
 import { signIn } from '@/lib/auth';
 import { maxBodyLength, minBodyLength } from '@/lib/commit';
 import { commitStateKey } from '@/lib/commit-state';
-import { gifFormFields } from '@/lib/gif-providers';
+import { gifFormFields, toCommitGif } from '@/lib/gif-providers';
 import type { GifProviderId } from '@/lib/gif-providers';
 import { hasModKey } from '@/lib/keyboard';
 import {
@@ -1330,7 +1330,7 @@ function ReplyComposer({
                 )}
             </div>
             {preview.isPreviewing && gif !== null && (
-                <CommitGif gif={{ ...gif, page_url: gif.pageUrl }} />
+                <CommitGif gif={toCommitGif(gif)} />
             )}
             <InputError
                 message={errors.body ?? errors.link_preview_url}

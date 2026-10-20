@@ -67,6 +67,18 @@ final class CreateCommitRequest extends FormRequest
             ],
             'image_descriptions' => ['nullable', 'list', 'max:'.CreateCommitImages::MAX_IMAGES],
             'image_descriptions.*' => ['nullable', 'string', 'max:'.CreateCommitImages::MAX_DESCRIPTION_LENGTH],
+            ...self::gifRules($provider),
+        ];
+    }
+
+    /**
+     * Shared by top-level commits and replies; replies have no poll field, but gif_id still prohibits one.
+     *
+     * @return array<string, array<int, string|ValidationRule|Enum>>
+     */
+    public static function gifRules(GifProvider $provider = GifProvider::Giphy): array
+    {
+        return [
             'gif_provider' => ['nullable', 'string', Rule::enum(GifProvider::class), 'required_with:gif_id'],
             'gif_id' => ['nullable', 'string', 'max:64', 'regex:/^[A-Za-z0-9-]+$/', 'prohibits:images,poll', 'required_with:gif_url'],
             'gif_url' => ['nullable', 'string', 'max:2048', 'required_with:gif_id', new GifMediaUrl($provider)],

@@ -1,3 +1,4 @@
+import type { CommitGif } from '@/types/commit';
 import { giphy } from './giphy.ts';
 import { klipy } from './klipy.ts';
 import type {
@@ -23,6 +24,20 @@ export function attachmentFromResult(
     result: GifResult,
 ): GifAttachment {
     return { ...result, provider: id };
+}
+
+/** A gif attachment shaped for CommitGif to render, dropping the draft's extra previewUrl field. */
+export function toCommitGif(gif: GifAttachment): CommitGif {
+    return {
+        provider: gif.provider,
+        id: gif.id,
+        url: gif.url,
+        page_url: gif.pageUrl,
+        title: gif.title,
+        username: gif.username,
+        width: gif.width,
+        height: gif.height,
+    };
 }
 
 export function gifFormFields(
