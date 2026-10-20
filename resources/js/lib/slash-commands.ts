@@ -1,7 +1,7 @@
 import type { LucideIcon } from 'lucide-react';
 import { Braces, Bug, ChartBar, ImagePlus, Lightbulb } from 'lucide-react';
 
-// Keep in sync with maxImages in resources/js/components/commit-image-picker.tsx.
+// Keep in sync with maxImages in resources/js/lib/read-picked-images.ts.
 const maxImages = 3;
 
 export type SlashCommandId = 'image' | 'poll' | 'code' | 'bug' | 'feature';
