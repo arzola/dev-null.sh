@@ -202,6 +202,34 @@ const rendition = (slug: string) => ({
     height: '270',
 });
 
+test('giphy derives the next cursor from the raw page size after filtering', async () => {
+    const safe = (index: number) => ({
+        id: `gif-${index}`,
+        title: `GIF ${index}`,
+        username: 'giphy',
+        rating: 'g',
+        url: `https://giphy.com/gifs/gif-${index}`,
+        images: { original: rendition(`gif-${index}`) },
+    });
+
+    stubFetch({
+        data: Array.from({ length: 24 }, (_, index) =>
+            index === 0
+                ? { ...safe(index), rating: 'r' }
+                : safe(index),
+        ),
+    });
+
+    try {
+        const page = await giphy.search('key-123', 'gif', { cursor: null });
+
+        assert.equal(page.results.length, 23);
+        assert.equal(page.nextCursor, '24');
+    } finally {
+        restoreFetch();
+    }
+});
+
 test('giphy falls back across stored renditions and previews', async () => {
     const cases: {
         name: string;
