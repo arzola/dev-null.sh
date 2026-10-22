@@ -1,3 +1,4 @@
+import { isBlockedGifText, isSafeGiphyRating } from './safety.ts';
 import type {
     GifKeyValidation,
     GifProvider,
@@ -12,6 +13,7 @@ type GiphyItem = {
     id: string;
     title: string;
     username: string;
+    rating?: string;
     url: string;
     images: Partial<
         Record<
@@ -36,6 +38,13 @@ const params = (key: string, offset: string | null): URLSearchParams =>
     });
 
 const normalize = (item: GiphyItem): GifResult | null => {
+    if (
+        !isSafeGiphyRating(item.rating) ||
+        isBlockedGifText(item.title, item.username)
+    ) {
+        return null;
+    }
+
     const stored =
         item.images.downsized_medium ??
         item.images.downsized ??

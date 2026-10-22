@@ -31,6 +31,7 @@ const giphyPayload = {
         id: 'xT9IgzoKnwFNmISR8I',
         title: 'Deal With It GIF',
         username: 'giphy',
+        rating: 'g',
         url: 'https://giphy.com/gifs/deal-with-it-xT9IgzoKnwFNmISR8I',
         images: {
             fixed_height_small: { url: 'https://media2.giphy.com/media/xT9IgzoKnwFNmISR8I/100.gif?cid=abc', width: '178', height: '100' },
@@ -88,6 +89,7 @@ test('giphy derives the next cursor from a full page and passes it back as offse
             id: `gif-${index}`,
             title: `GIF ${index}`,
             username: 'giphy',
+            rating: 'g',
             url: `https://giphy.com/gifs/gif-${index}`,
             images: {
                 downsized_medium: {
@@ -163,6 +165,7 @@ test('adapters drop items without a usable rendition', async () => {
             id: 'no-renditions',
             title: 'Nothing',
             username: '',
+            rating: 'g',
             url: 'https://giphy.com/gifs/nothing',
             images: {},
         }],
@@ -262,6 +265,7 @@ test('giphy falls back across stored renditions and previews', async () => {
                 id: 'gif',
                 title: 'GIF',
                 username: 'giphy',
+                rating: 'g',
                 url: 'https://giphy.com/gifs/gif',
                 images,
             }],
@@ -286,6 +290,7 @@ test('giphy normalizes empty titles and usernames to null', async () => {
             id: 'gif',
             title: '',
             username: '',
+            rating: 'g',
             url: 'https://giphy.com/gifs/gif',
             images: { original: rendition('original') },
         }],
@@ -296,6 +301,66 @@ test('giphy normalizes empty titles and usernames to null', async () => {
 
         assert.equal(page.results[0]?.title, null);
         assert.equal(page.results[0]?.username, null);
+    } finally {
+        restoreFetch();
+    }
+});
+
+test('giphy drops results without a safe rating', async () => {
+    const item = {
+        id: 'gif',
+        title: 'GIF',
+        username: 'giphy',
+        url: 'https://giphy.com/gifs/gif',
+        images: { original: rendition('original') },
+    };
+
+    for (const [rating, expected] of [
+        ['g', 1],
+        ['pg', 0],
+        ['pg-13', 0],
+        ['r', 0],
+        ['y', 0],
+        [undefined, 0],
+    ] as const) {
+        stubFetch({ data: [{ ...item, rating }] });
+
+        try {
+            const page = await giphy.search('key-123', 'gif', {
+                cursor: null,
+            });
+
+            assert.equal(page.results.length, expected, String(rating));
+        } finally {
+            restoreFetch();
+        }
+    }
+});
+
+test('giphy drops blocked titles and usernames', async () => {
+    const item = (id: string, title: string, username: string) => ({
+        id,
+        title,
+        username,
+        rating: 'g',
+        url: `https://giphy.com/gifs/${id}`,
+        images: { original: rendition(id) },
+    });
+
+    stubFetch({
+        data: [
+            item('blocked-title', 'PORN star', 'giphy'),
+            item('blocked-username', 'Hello', 'xxx'),
+            item('safe', 'Hello', 'giphy'),
+        ],
+    });
+
+    try {
+        const page = await giphy.search('key-123', 'hello', {
+            cursor: null,
+        });
+
+        assert.deepEqual(page.results.map((result) => result.id), ['safe']);
     } finally {
         restoreFetch();
     }
