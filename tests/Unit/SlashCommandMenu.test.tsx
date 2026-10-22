@@ -306,7 +306,7 @@ test('typing @ opens the mention menu in its searching state', () => {
 });
 
 test('mention results for a stale query are not shown', () => {
-    state[6] = {
+    state[5] = {
         key: ':bob',
         users: [{ id: 'bob', username: 'bob', name: 'Bob', lane: 2 }],
     };
@@ -318,7 +318,7 @@ test('mention results for a stale query are not shown', () => {
 });
 
 test('selecting a mention inserts @username and closes the menu', () => {
-    state[6] = { key: ':::ali', users: [alice] };
+    state[5] = { key: ':::ali', users: [alice] };
     const tree = type('@ali');
     const suggestion = mentionRows(tree)[0]!;
 

@@ -28,7 +28,7 @@ import {
 import type { ComposerSurface, SlashOption } from '@/lib/slash-commands';
 import { toastWhenThrottled } from '@/lib/throttle';
 import { characterCount, cn, laneColor, limitCharacters } from '@/lib/utils';
-import type { User } from '@/types';
+import type { OrgMember, User } from '@/types';
 
 type Suggestions = {
     key: string;
@@ -139,6 +139,7 @@ export function MentionTextarea({
     suggestsMentions = true,
     suggestsIssues = suggestsMentions,
     org,
+    members,
     reply,
     quote,
     maxLength,
@@ -154,6 +155,7 @@ export function MentionTextarea({
     suggestsMentions?: boolean;
     suggestsIssues?: boolean;
     org?: string;
+    members?: OrgMember[];
     reply?: string;
     quote?: string;
 }) {
@@ -162,13 +164,13 @@ export function MentionTextarea({
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const dismissedIssue = useRef<string | null>(null);
     const [token, setToken] = useState<CaretToken | null>(null);
-    const [dismissedStart, setDismissedStart] = useState<number | null>(null);
     const [position, setPosition] = useState<CaretMenuPosition | null>(null);
     const [results, setResults] = useState<Suggestions | null>(null);
+    const [activeIndex, setActiveIndex] = useState(0);
     const [issueResult, setIssueResult] = useState<IssueSuggestion | null>(
         null,
     );
-    const [activeIndex, setActiveIndex] = useState(0);
+    const [dismissedStart, setDismissedStart] = useState<number | null>(null);
 
     const mention = token?.kind === 'mention' ? token : null;
     const slash = token?.kind === 'slash' ? token : null;
@@ -262,14 +264,12 @@ export function MentionTextarea({
     };
 
     useEffect(() => {
-        if (dismissedStart !== null && value[dismissedStart] !== '/') {
-            // oxlint-disable-next-line react/set-state-in-effect
-            setDismissedStart(null);
-        }
-    }, [value, dismissedStart]);
-
-    useEffect(() => {
-        if (query === null || key === null || cache.has(key)) {
+        if (
+            members !== undefined ||
+            query === null ||
+            key === null ||
+            cache.has(key)
+        ) {
             return;
         }
 
@@ -286,7 +286,14 @@ export function MentionTextarea({
             clearTimeout(timeout);
             controller.abort();
         };
-    }, [key, query, org, reply, quote]);
+    }, [key, query, org, reply, quote, members]);
+
+    useEffect(() => {
+        if (dismissedStart !== null && value[dismissedStart] !== '/') {
+            // oxlint-disable-next-line react/set-state-in-effect
+            setDismissedStart(null);
+        }
+    }, [value, dismissedStart]);
 
     useEffect(() => {
         if (issueQuery === null) {
@@ -349,7 +356,45 @@ export function MentionTextarea({
     }, [token]);
 
     const cached = key === null ? undefined : cache.get(key);
-    const current = key !== null && cached ? { key, users: cached } : results;
+    const local =
+        members === undefined || query === null
+            ? null
+            : members
+                  .filter((member) => member.suggests_mentions)
+                  .filter(
+                      ({ user }) =>
+                          user.username.toLowerCase().includes(query) ||
+                          user.name.toLowerCase().includes(query),
+                  )
+                  .map((member) => ({
+                      ...member,
+                      tier:
+                          member.user.username.toLowerCase() === query
+                              ? 0
+                              : member.user.username
+                                      .toLowerCase()
+                                      .startsWith(query)
+                                ? 1
+                                : member.user.name
+                                        .toLowerCase()
+                                        .startsWith(query)
+                                  ? 2
+                                  : 3,
+                  }))
+                  .sort(
+                      (a, b) =>
+                          a.tier - b.tier ||
+                          Number(b.is_followed) - Number(a.is_followed) ||
+                          (a.user.username < b.user.username ? -1 : 1),
+                  )
+                  .slice(0, 6)
+                  .map(({ user }) => user);
+    const current =
+        local !== null && key !== null
+            ? { key, users: local }
+            : key !== null && cached
+              ? { key, users: cached }
+              : results;
     const suggestions =
         key !== null && current?.key === key ? current.users : [];
     const isOpen =
@@ -389,6 +434,12 @@ export function MentionTextarea({
     const emojis = emoji === null ? [] : searchEmoji(emojiQuery);
     const isEmojiOpen =
         emoji !== null && position !== null && emojis.length > 0;
+    const mentionIndex =
+        suggestions.length > 0
+            ? Math.min(activeIndex, suggestions.length - 1)
+            : 0;
+    const emojiIndex =
+        emojis.length > 0 ? Math.min(activeIndex, emojis.length - 1) : 0;
     const isIssueOpen =
         issueToken !== null &&
         position !== null &&
@@ -612,7 +663,7 @@ export function MentionTextarea({
             isOpen &&
             handleCaretMenuKeydown(event, {
                 count: suggestions.length,
-                activeIndex,
+                activeIndex: mentionIndex,
                 setActiveIndex,
                 onSelect: (index) => {
                     const user = suggestions[index];
@@ -631,7 +682,7 @@ export function MentionTextarea({
             isEmojiOpen &&
             handleCaretMenuKeydown(event, {
                 count: emojis.length,
-                activeIndex,
+                activeIndex: emojiIndex,
                 setActiveIndex,
                 onSelect: (index) => {
                     const suggestion = emojis[index];
@@ -652,12 +703,12 @@ export function MentionTextarea({
     const activeId = isIssueOpen
         ? `${id}-issue-${issue?.number}`
         : isOpen
-          ? suggestions[activeIndex] &&
-            `${id}-mention-${suggestions[activeIndex].id}`
+          ? suggestions[mentionIndex] &&
+            `${id}-mention-${suggestions[mentionIndex].id}`
           : isSlashOpen && slashOptions[slashIndex]
             ? `${id}-slash-${slashOptions[slashIndex].command.id}`
-            : isEmojiOpen && emojis[activeIndex]
-              ? `${id}-emoji-${emojis[activeIndex].name}`
+            : isEmojiOpen && emojis[emojiIndex]
+              ? `${id}-emoji-${emojis[emojiIndex].name}`
               : undefined;
 
     const isSearching = current?.key !== key;
@@ -770,7 +821,7 @@ export function MentionTextarea({
                         <CaretMenuList
                             id={`${id}-mentions`}
                             label="Mention a developer"
-                            activeIndex={activeIndex}
+                            activeIndex={mentionIndex}
                         >
                             {query === '' &&
                                 !reply &&
@@ -788,13 +839,13 @@ export function MentionTextarea({
                                     key={user.id}
                                     id={`${id}-mention-${user.id}`}
                                     role="option"
-                                    aria-selected={index === activeIndex}
+                                    aria-selected={index === mentionIndex}
                                     onMouseMove={() => setActiveIndex(index)}
                                     onClick={() => select(user)}
                                     className={cn(
                                         'flex cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2',
                                         {
-                                            'bg-accent': index === activeIndex,
+                                            'bg-accent': index === mentionIndex,
                                         },
                                     )}
                                     data-test="mention-suggestion"
@@ -835,7 +886,7 @@ export function MentionTextarea({
                                             'hidden shrink-0 font-mono text-xs text-muted-foreground opacity-0 sm:block',
                                             {
                                                 'opacity-100':
-                                                    index === activeIndex,
+                                                    index === mentionIndex,
                                             },
                                         )}
                                     >
@@ -931,20 +982,20 @@ export function MentionTextarea({
                     <CaretMenuList
                         id={`${id}-emojis`}
                         label="Insert an emoji"
-                        activeIndex={activeIndex}
+                        activeIndex={emojiIndex}
                     >
                         {emojis.map((suggestion, index) => (
                             <li
                                 key={suggestion.name}
                                 id={`${id}-emoji-${suggestion.name}`}
                                 role="option"
-                                aria-selected={index === activeIndex}
+                                aria-selected={index === emojiIndex}
                                 onMouseMove={() => setActiveIndex(index)}
                                 onClick={() => selectEmoji(suggestion)}
                                 className={cn(
                                     'flex cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-1.5',
                                     {
-                                        'bg-accent': index === activeIndex,
+                                        'bg-accent': index === emojiIndex,
                                     },
                                 )}
                                 data-test="emoji-suggestion"
@@ -968,8 +1019,7 @@ export function MentionTextarea({
                                     className={cn(
                                         'hidden shrink-0 font-mono text-xs text-muted-foreground opacity-0 sm:block',
                                         {
-                                            'opacity-100':
-                                                index === activeIndex,
+                                            'opacity-100': index === emojiIndex,
                                         },
                                     )}
                                 >
