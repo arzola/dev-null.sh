@@ -1,3 +1,4 @@
+import { isBlockedGifText } from './safety.ts';
 import type {
     GifKeyValidation,
     GifProvider,
@@ -36,6 +37,10 @@ const params = (key: string, cursor: string | null): URLSearchParams => {
 };
 
 const normalize = (item: KlipyItem): GifResult | null => {
+    if (isBlockedGifText(item.title, item.content_description)) {
+        return null;
+    }
+
     const gif = item.media_formats?.gif;
 
     if (gif === undefined) {

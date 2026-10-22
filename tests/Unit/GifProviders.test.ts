@@ -366,6 +366,44 @@ test('giphy drops blocked titles and usernames', async () => {
     }
 });
 
+test('klipy drops blocked titles and descriptions', async () => {
+    const item = (
+        id: string,
+        title: string,
+        description: string,
+    ) => ({
+        id,
+        title,
+        content_description: description,
+        itemurl: `https://klipy.com/gifs/${id}`,
+        media_formats: {
+            gif: {
+                url: `https://static.klipy.com/ii/${id}.gif`,
+                dims: [498, 498] as [number, number],
+            },
+        },
+    });
+
+    stubFetch({
+        results: [
+            item('blocked-title', 'PORN', ''),
+            item('blocked-description', 'Hello', 'gory scene'),
+            item('safe', 'Hello', 'hello greeting'),
+        ],
+        next: '',
+    });
+
+    try {
+        const page = await klipy.search('k-key', 'hello', {
+            cursor: null,
+        });
+
+        assert.deepEqual(page.results.map((result) => result.id), ['safe']);
+    } finally {
+        restoreFetch();
+    }
+});
+
 test('klipy falls back to the content description for its title', async () => {
     const cases: {
         name: string;
