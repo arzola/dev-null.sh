@@ -22,7 +22,7 @@ use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 
 beforeEach(function (): void {
-    config(['services.openai.key' => 'sk-test']);
+    config(['ai.providers.openai.key' => 'sk-test']);
 });
 
 /**
@@ -62,7 +62,7 @@ function reviewResponse(string $question, bool|string $answer): array
 function reviewResponses(array $responses = []): Closure
 {
     return function (Request $request) use ($responses): PromiseInterface {
-        $question = $request['text']['format']['name'];
+        $question = array_key_first($request['text']['format']['schema']['properties']);
 
         return Http::response($responses[$question] ?? reviewResponse($question, false));
     };
@@ -95,7 +95,7 @@ it('stores that the ai would approve a commit it does not flag', function (): vo
 
     Http::assertSent(fn (Request $request): bool => str_ends_with($request->url(), '/responses')
         && $request['model'] === 'gpt-6.1-sol'
-        && $request['text']['format']['name'] === 'harmful'
+        && $request['text']['format']['schema']['required'] === ['harmful']
         && $request['input'][1]['content'] === [['type' => 'input_text', 'text' => 'Shipped a new feature']]);
 
     Http::assertSentCount(2);
@@ -263,7 +263,7 @@ it('checks only the images of a commit without a body', function (): void {
         && $request['input'] === [['type' => 'image_url', 'image_url' => ['url' => 'data:image/webp;base64,'.base64_encode('first')]]]);
 
     Http::assertNotSent(fn (Request $request): bool => str_ends_with($request->url(), '/responses')
-        && $request['text']['format']['name'] === 'harmful');
+        && $request['text']['format']['schema']['required'] === ['harmful']);
 });
 
 it('flags categories scoring above the strict thresholds, even when openai does not flag them', function (): void {
@@ -308,8 +308,9 @@ it('rejects images that may show a minor', function (): void {
 
     Http::assertSent(fn (Request $request): bool => str_ends_with($request->url(), '/responses')
         && $request['model'] === 'gpt-6.1-sol'
-        && $request['text']['format']['name'] === 'minors'
+        && $request['text']['format']['schema']['required'] === ['minors']
         && $request['input'][1]['content'] === [
+            ['type' => 'input_text', 'text' => 'Review these images.'],
             ['type' => 'input_image', 'image_url' => 'data:image/webp;base64,'.base64_encode('first')],
             ['type' => 'input_image', 'image_url' => 'data:image/webp;base64,'.base64_encode('second')],
         ]);
@@ -454,6 +455,7 @@ it('moderates an attached klipy gif by its url', function (): void {
 });
 
 it('keeps unavailable moderation pending and recovers on a later queued attempt', function (bool $recovers): void {
+    config(['queue.default' => 'sync']);
     Exceptions::fake();
     Http::fake([
         'api.openai.com/v1/moderations' => Http::sequence()

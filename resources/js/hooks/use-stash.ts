@@ -1,5 +1,5 @@
 import type { FocusEvent } from 'react';
-import { useEffect, useState, useSyncExternalStore } from 'react';
+import { useState, useSyncExternalStore } from 'react';
 import {
     maxImages,
     pickImages,
@@ -14,7 +14,6 @@ import {
     readStoredImages,
     writeStoredImages,
 } from '@/lib/image-storage';
-import { stashableBody } from '@/lib/sensitive-text';
 import { readStorage, storedKeys, writeStorage } from '@/lib/storage';
 
 export type UseStashReturn = {
@@ -124,7 +123,7 @@ const subscribe = (callback: () => void) => {
 
 const flush = (): void => {
     clearTimeout(timeout);
-    pending.forEach((body, key) => writeStorage(key, stashableBody(body)));
+    pending.forEach((body, key) => writeStorage(key, body));
     pending.clear();
     notify();
 };
@@ -244,12 +243,6 @@ export function useStash(userId: string, name: string): UseStashReturn {
         () => body !== '' || draftImages.length > 0 || gifFor(key) !== null,
     );
 
-    useEffect(() => {
-        if (body !== '' && stashableBody(body) === '') {
-            discardBody(key);
-        }
-    }, [body, key]);
-
     const updateBody = (next: string): void => {
         setBody(next);
 
@@ -263,11 +256,7 @@ export function useStash(userId: string, name: string): UseStashReturn {
             return;
         }
 
-        if (stashableBody(next) === '') {
-            discardBody(key);
-        } else {
-            schedule(key, next);
-        }
+        schedule(key, next);
     };
 
     const updateImages = (next: File[], descriptions: string[] = []): void => {
