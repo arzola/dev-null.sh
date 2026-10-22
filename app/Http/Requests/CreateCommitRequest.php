@@ -110,11 +110,14 @@ final class CreateCommitRequest extends FormRequest
         $rawProvider = $this->input('gif_provider');
         $provider = is_string($rawProvider) ? (GifProvider::tryFrom($rawProvider) ?? GifProvider::Giphy) : GifProvider::Giphy;
 
+        $attachmentRules = self::attachmentRules($provider);
+        $attachmentRules['poll'][] = 'prohibits:quoted_commit_id';
+
         return [
             'body' => self::bodyRules($this->hasFile('images')),
             'quoted_commit_id' => ['nullable', 'uuid', 'prohibits:parent_id', new VisibleCommit($user, 'That commit is no longer available to quote.')],
             'link_preview_url' => ['nullable', 'string', Rule::in(is_string($body) ? resolve(Urls::class)->all($body) : [])],
-            ...self::attachmentRules($provider),
+            ...$attachmentRules,
         ];
     }
 
