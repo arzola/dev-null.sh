@@ -150,6 +150,19 @@ export function GifPickerDialog({
         setQuery('');
     };
 
+    const loadMoreButton = nextCursor !== null && (
+        <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            disabled={isLoadingMore}
+            onClick={loadMore}
+            className="mx-auto"
+        >
+            {isLoadingMore ? 'Loading…' : 'Load more'}
+        </Button>
+    );
+
     return (
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="max-h-[80vh] overflow-y-auto sm:max-w-lg">
@@ -198,9 +211,12 @@ export function GifPickerDialog({
                     </div>
                 )}
                 {status === 'ready' && results.length === 0 && (
-                    <p className="py-8 text-center text-sm text-muted-foreground">
-                        No GIFs matched. /dev/null remains empty.
-                    </p>
+                    <>
+                        <p className="py-8 text-center text-sm text-muted-foreground">
+                            No GIFs matched. /dev/null remains empty.
+                        </p>
+                        {loadMoreButton}
+                    </>
                 )}
                 {status === 'ready' && results.length > 0 && (
                     <>
@@ -233,18 +249,7 @@ export function GifPickerDialog({
                                 ),
                             )}
                         </ul>
-                        {nextCursor !== null && (
-                            <Button
-                                type="button"
-                                variant="secondary"
-                                size="sm"
-                                disabled={isLoadingMore}
-                                onClick={loadMore}
-                                className="mx-auto"
-                            >
-                                {isLoadingMore ? 'Loading…' : 'Load more'}
-                            </Button>
-                        )}
+                        {loadMoreButton}
                     </>
                 )}
                 <div className="flex justify-center border-t pt-3">

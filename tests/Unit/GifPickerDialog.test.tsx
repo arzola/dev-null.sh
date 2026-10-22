@@ -262,6 +262,31 @@ test('loads more with the cursor from the previous page', async () => {
     assert.ok(options?.signal instanceof AbortSignal);
 });
 
+test('offers load more when a page filters to no results', async () => {
+    trending.mockImplementation(
+        async (_key: string, options: { cursor: string | null }) =>
+            options.cursor === null
+                ? { results: [], nextCursor: 'next-page' }
+                : { results: [result], nextCursor: null },
+    );
+
+    render();
+    await settle();
+
+    const fields = render();
+
+    assert.ok(
+        fields.some(
+            (element) =>
+                element.props.children ===
+                'No GIFs matched. /dev/null remains empty.',
+        ),
+    );
+    assert.ok(
+        fields.some((element) => element.props.children === 'Load more'),
+    );
+});
+
 test('renders no GIF dialog without a provider key and keeps the image picker working', () => {
     const fields = elements(
         ComposerMediaButton({
