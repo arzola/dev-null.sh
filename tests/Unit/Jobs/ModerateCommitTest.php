@@ -25,6 +25,11 @@ beforeEach(function (): void {
     config(['ai.providers.openai.key' => 'sk-test']);
 });
 
+function tinyGif(): string
+{
+    return base64_decode('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7');
+}
+
 /**
  * @param  list<string>  $flagged
  * @param  array<string, float>  $scores
@@ -414,8 +419,9 @@ it('throws when the ai is unavailable, so the job is retried', function (): void
     })->and($commit->refresh())->ai_decision->toBeNull()->status->toBe(CommitStatus::Pending);
 });
 
-it('moderates an attached gif by its giphy url', function (): void {
+it('moderates an attached giphy gif by its first frame', function (): void {
     Http::fake([
+        'media2.giphy.com/*' => Http::response(tinyGif()),
         'api.openai.com/v1/moderations' => Http::response(moderationResponse()),
         'api.openai.com/v1/responses' => reviewResponses(),
     ]);
@@ -425,11 +431,12 @@ it('moderates an attached gif by its giphy url', function (): void {
     dispatch_sync(new ModerateCommit($commit));
 
     Http::assertSent(fn (Request $request): bool => str_contains($request->url(), 'moderations')
-        && str_contains($request->body(), 'media2.giphy.com'));
+        && str_contains($request->body(), 'data:image'));
 });
 
-it('moderates an attached klipy gif by its url', function (): void {
+it('moderates an attached klipy gif by its first frame', function (): void {
     Http::fake([
+        'static.klipy.com/*' => Http::response(tinyGif()),
         'api.openai.com/v1/moderations' => Http::response(moderationResponse()),
         'api.openai.com/v1/responses' => reviewResponses(),
     ]);
@@ -439,7 +446,7 @@ it('moderates an attached klipy gif by its url', function (): void {
     dispatch_sync(new ModerateCommit($commit));
 
     Http::assertSent(fn (Request $request): bool => str_contains($request->url(), 'moderations')
-        && str_contains($request->body(), 'static.klipy.com'));
+        && str_contains($request->body(), 'data:image'));
 });
 
 it('keeps unavailable moderation pending and recovers on a later queued attempt', function (bool $recovers): void {

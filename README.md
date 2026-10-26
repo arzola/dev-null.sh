@@ -70,7 +70,7 @@ Twitch requires the embedding site's host, which is taken from `APP_URL`. To add
 
 ### GIFs
 
-GIF search is bring-your-own-key and stays in your browser: connect one provider — [GIPHY](https://developers.giphy.com) or [KLIPY](https://klipy.com) — under Settings → Profile → GIFs and paste its API key. The key is stored only in this browser (`localStorage`), never sent to the server or saved in the database; each device needs its own, and clearing site data removes it. Searches run on your key and quota, so no paid key is shared by the instance; without one the picker is hidden. The browser talks to the provider directly and commits store only the GIF's URLs and metadata — nothing is downloaded or rehosted. Connect one provider at a time; choosing another replaces it. Both providers apply a keyword list; GIPHY also requires a per-result rating of `g`, while KLIPY relies on its `contentfilter=high` setting. Filtering is best-effort and doesn't cover GIF URLs attached outside the picker.
+GIF search is bring-your-own-key and stays in your browser: connect one provider — [GIPHY](https://developers.giphy.com) or [KLIPY](https://partner.klipy.com) — under Settings → Profile → GIFs and paste its API key. The key is stored only in this browser (`localStorage`), never sent to the server or saved in the database; each device needs its own, and clearing site data removes it. Searches run on your key and quota, so no paid key is shared by the instance; without one the picker is hidden. The browser talks to the provider directly and commits store only the GIF's URLs and metadata — nothing is rehosted; the server briefly fetches the GIF to run moderation. Connect one provider at a time; choosing another replaces it. Both providers apply a keyword list; GIPHY also requires a per-result rating of `g`, while KLIPY relies on its `contentfilter=high` setting. Filtering is best-effort and doesn't cover GIF URLs attached outside the picker.
 
 ### Verify installation
 
@@ -86,7 +86,7 @@ Read-only, no authentication, JSON, versioned under `/api/v1`. Only approved com
 | `GET /api/v1/users/{username}/commits` | The user's top-level commits, newest first, 20 per page (`?replies=1` for their replies instead) |
 | `GET /api/v1/users/{username}/followers` | The people following the user, newest follow first, 30 per page |
 | `GET /api/v1/users/{username}/following` | The people the user follows, newest follow first, 30 per page |
-| `GET /api/v1/commits/{id}` | One commit with its author, public parent id, star and reply counts, link preview (with its `embed` player, if any), and images (`id`, `url`, `width`, `height`) |
+| `GET /api/v1/commits/{id}` | One commit with its author, public parent id, star and reply counts, link preview (with its `embed` player, if any), images (`id`, `url`, `width`, `height`), and its `gif` (`provider`, `id`, `url`, `page_url`, `title`, `username`, `width`, `height`) when one is attached |
 
 Lists are cursor-paginated: follow `links.next` (or pass `meta.next_cursor` as `?cursor=`) until it is `null`.
 
@@ -94,13 +94,13 @@ Lists are cursor-paginated: follow `links.next` (or pass `meta.next_cursor` as `
 curl -s https://dev-null.sh/api/v1/users/nunomaduro/commits | jq '.data[] | {short_hash, body}'
 ```
 
-Every profile also has an Atom feed of its latest 50 top-level commits at `/@{username}/feed.atom`, with their images as enclosures, cached for five minutes.
+Every profile also has an Atom feed of its latest 50 top-level commits at `/@{username}/feed.atom`, with their images and GIFs as enclosures, cached for five minutes.
 
 ## Signed requests
 
 The mobile app signs its requests to `/api/v1` with an SSH key it keeps on the device, which the user approved on the web (see [Signing in](#signing-in)). A signed request to the endpoints above gets what the web shows that user. The log, replies, notifications, saved commits, committing, deleting, following, starring, saving, muting, blocking, reporting and pastéis only take signed requests. Signed requests are limited to 120 a minute per user.
 
-Commits in a signed response carry what the web's cards show: `preview_segments`, the excerpt a list shows of a long commit (or `null`), the `poll` with the user's view of its votes and each option's `percentage`, the `quoted_commit` (a tombstone once deleted, or `null` when the user may not see it, while `quoted_commit_id` still says a commit was quoted), and in lists the `reply_preview` the web shows under each commit. Its `next_cursor` continues with `GET /api/v1/commits/{id}/replies?newest=1&cursor=…`, as on the web.
+Commits in a signed response carry what the web's cards show: the same `gif` object as the public response, `preview_segments`, the excerpt a list shows of a long commit (or `null`), the `poll` with the user's view of its votes and each option's `percentage`, the `quoted_commit` (a tombstone once deleted, or `null` when the user may not see it, while `quoted_commit_id` still says a commit was quoted), and in lists the `reply_preview` the web shows under each commit. Its `next_cursor` continues with `GET /api/v1/commits/{id}/replies?newest=1&cursor=…`, as on the web.
 
 A signed profile also says `is_muting` and has the web's `achievements`, with the Unix rank. In a signed list of followers or following, each person says `is_followed`, whether the user follows them, and `follows_you`.
 
