@@ -169,7 +169,7 @@ function searching(tree: ReactElement): boolean {
     );
 }
 
-const alice = { id: 'alice', username: 'alice', name: 'Alice', lane: 1 };
+const alice = { id: 'alice', handle: 'alice', name: 'Alice', lane: 1 };
 
 beforeEach(() => {
     vi.clearAllMocks();
@@ -325,7 +325,7 @@ test('typing @ opens the mention menu in its searching state', () => {
 test('mention results for a stale query are not shown', () => {
     state[5] = {
         key: ':bob',
-        users: [{ id: 'bob', username: 'bob', name: 'Bob', lane: 2 }],
+        users: [{ id: 'bob', handle: 'bob', name: 'Bob', lane: 2 }],
     };
     const tree = type('@ali');
 
@@ -334,7 +334,7 @@ test('mention results for a stale query are not shown', () => {
     assert.ok(searching(tree));
 });
 
-test('selecting a mention inserts @username and closes the menu', () => {
+test('selecting a mention inserts @handle and closes the menu', () => {
     state[5] = { key: ':::ali', users: [alice] };
     const tree = type('@ali');
     const suggestion = mentionRows(tree)[0]!;

@@ -367,15 +367,15 @@ export function MentionTextarea({
                   .filter((member) => member.suggests_mentions)
                   .filter(
                       ({ user }) =>
-                          user.username.toLowerCase().includes(query) ||
+                          user.handle.toLowerCase().includes(query) ||
                           user.name.toLowerCase().includes(query),
                   )
                   .map((member) => ({
                       ...member,
                       tier:
-                          member.user.username.toLowerCase() === query
+                          member.user.handle.toLowerCase() === query
                               ? 0
-                              : member.user.username
+                              : member.user.handle
                                       .toLowerCase()
                                       .startsWith(query)
                                 ? 1
@@ -389,7 +389,7 @@ export function MentionTextarea({
                       (a, b) =>
                           a.tier - b.tier ||
                           Number(b.is_followed) - Number(a.is_followed) ||
-                          (a.user.username < b.user.username ? -1 : 1),
+                          (a.user.handle < b.user.handle ? -1 : 1),
                   )
                   .slice(0, 6)
                   .map(({ user }) => user);
@@ -496,7 +496,7 @@ export function MentionTextarea({
         });
     };
 
-    const select = (user: User) => insert(`@${user.username}`, ' ');
+    const select = (user: User) => insert(`@${user.handle}`, ' ');
 
     const selectEmoji = (suggestion: EmojiSuggestion) =>
         insert(suggestion.emoji, '');
@@ -866,7 +866,7 @@ export function MentionTextarea({
                                             <span className="truncate">
                                                 @
                                                 <Highlighted
-                                                    text={user.username}
+                                                    text={user.handle}
                                                     query={query ?? ''}
                                                 />
                                             </span>
