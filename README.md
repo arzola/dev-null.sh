@@ -158,7 +158,7 @@ An error is JSON with a `message` to show the user. The errors the app has to te
 | `403` | `own_commit` | The user tried to report their own commit. |
 | `404` | `commit_unavailable` | The commit to report doesn't exist, was deleted, isn't published, or is across a block. |
 | `422` | `pasteis_exhausted` | `POST /api/v1/commits/{id}/pasteis` only: the user gave all 10 of today's pastéis. They come back at 00:00 UTC. |
-| `429` | `rate_limited` | Over 120 signed requests a minute for the user, 10 commits a minute, 30 follows and unfollows a minute, 60 stars and unstars a minute, 60 saves and unsaves a minute, 5 reports a minute, 60 pastéis a minute, one profile sync a minute, or 60 failed signatures a minute from one IP. `Retry-After` says when to try again. |
+| `429` | `rate_limited` | Over 120 requests a minute for a signed-in user, 60 requests a minute per IP otherwise, 10 commits a minute, 30 follows and unfollows a minute, 60 stars and unstars a minute, 60 saves and unsaves a minute, 5 reports a minute, 60 pastéis a minute, one profile sync a minute, or 60 failed signature attempts a minute from one IP. `Retry-After` says when to try again. |
 | `503` | `github_sync_failed` | `PUT /api/v1/me/github` only: GitHub couldn't be reached, or didn't answer as expected. Nothing changed. |
 
 Other errors have no `code`, like a `422` for a commit that fails validation or a `404` for a commit that doesn't exist, except when reporting it. Unsigned requests to the public endpoints get the same errors as before, without codes.
