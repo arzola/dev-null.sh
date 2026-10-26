@@ -13,7 +13,6 @@ use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Validation\Rule;
-use Illuminate\Validation\Rules\In;
 use InvalidArgumentException;
 
 /**
@@ -56,7 +55,7 @@ final class CreateApiDeviceRequest extends FormRequest
      * The verifier is the one the app made its PKCE challenge from (RFC 7636). An app that showed the terms and privacy
      * policy before sending the person to sign in says which version, and it is recorded as accepted.
      *
-     * @return array<string, list<string|In>>
+     * @return array<string, list<mixed>>
      */
     public function rules(): array
     {
