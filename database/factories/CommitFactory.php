@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Database\Factories;
 
+use App\Dto\ThreadEngagement;
 use App\Enums\CommitStatus;
 use App\Enums\GifProvider;
 use App\Models\Commit;
@@ -40,7 +41,7 @@ final class CommitFactory extends Factory
             }
 
             if ($commit->getAttribute('hot_score') === null) {
-                $commit->forceFill(['hot_score' => resolve(TheAlgorithm::class)->score($commit->created_at ?? now(), 0, 0)]);
+                $commit->forceFill(['hot_score' => resolve(TheAlgorithm::class)->score($commit->created_at ?? now(), ThreadEngagement::none())]);
             }
         });
     }

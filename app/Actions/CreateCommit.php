@@ -6,6 +6,7 @@ namespace App\Actions;
 
 use App\Dto\Gif;
 use App\Dto\NewPoll;
+use App\Dto\ThreadEngagement;
 use App\Enums\CommitStatus;
 use App\Jobs\CheckUserLevel;
 use App\Jobs\EmbedCommit;
@@ -68,7 +69,7 @@ final readonly class CreateCommit
                 'status' => $user->isAdmin() || $hasGoodReputation ? CommitStatus::Approved : CommitStatus::Pending,
                 'link_preview_id' => $linkPreview?->id,
                 'quoted_commit_id' => $quotedCommit?->id,
-                'hot_score' => $this->theAlgorithm->score($createdAt, 0, 0),
+                'hot_score' => $this->theAlgorithm->score($createdAt, ThreadEngagement::none()),
                 'created_at' => $createdAt,
             ]);
 

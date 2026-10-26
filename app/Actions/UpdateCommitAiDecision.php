@@ -47,10 +47,6 @@ final readonly class UpdateCommitAiDecision
             $categories[] = 'harmful-text';
         }
 
-        if ($images !== [] && $this->openAI->showsMinors($images)) {
-            $categories[] = 'minor-in-image';
-        }
-
         $commit->update([
             'ai_decision' => $categories === [] ? CommitStatus::Approved : CommitStatus::Rejected,
             'ai_categories' => $categories,
