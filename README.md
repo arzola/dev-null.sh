@@ -146,8 +146,8 @@ An error is JSON with a `message` to show the user. The errors the app has to te
 
 | Status | `code` | When |
 |---|---|---|
-| `400` | `invalid_grant` | `POST /api/v1/devices` only: the code is wrong, expired or used, was handed out for another key, or the verifier doesn't match. |
-| `401` | `invalid_signature` | The signature is missing, malformed or wrong, has expired, or was used already. |
+| `400` | `invalid_grant` | `POST /api/v1/devices` only: the code is wrong, expired or used, was handed out for another key, the verifier doesn't match, or its user was deleted since. |
+| `401` | `invalid_signature` | Signed-only endpoints: the signature is missing, malformed or wrong, has expired, or was used already. |
 | `401` | `device_not_approved` | Nobody approved the key as a device, or it was revoked. |
 | `403` | `user_blocked` | The user blocked the profile they asked for. Neither of them sees the other's commits. The error comes with the `user` they blocked, as the web shows them. |
 | `403` | `user_unavailable` | The profile isn't available to the user, because it blocked them. |
@@ -188,10 +188,10 @@ The app signs in the way an OAuth app does, with the authorization code flow and
 | Status | `code` | Means |
 |---|---|---|
 | `200` | | The device is approved. The body is the user, with `unread_notifications_count`. |
-| `400` | `invalid_grant` | The code is wrong, expired or used, was handed out for another key, or the verifier doesn't match. Sign in again. |
+| `400` | `invalid_grant` | The code is wrong, expired or used, was handed out for another key, the verifier doesn't match, or its user was deleted since. Sign in again. |
 | `401` | `invalid_signature` | The signature is bad, expired or used already. |
 | `422` | | `code` or `code_verifier` is missing, or the verifier isn't 43 to 128 characters of `A-Z a-z 0-9 - . _ ~`. |
-| `429` | `rate_limited` | Over 12 tries a minute for one key, or 60 from one IP, counted before signatures are checked. `Retry-After` says when to try again. |
+| `429` | `rate_limited` | Over 12 redemption attempts a minute for one key, or 60 device-route requests a minute from one IP. The per-key redemption limit is checked after the request signature is verified; the per-IP route limit is checked before signature verification. `Retry-After` says when to try again. |
 
 ## Available Tooling
 

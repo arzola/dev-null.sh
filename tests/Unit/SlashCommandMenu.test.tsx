@@ -231,6 +231,23 @@ test('disabled commands stay listed with their reason and never run', () => {
     assert.ok(row(render(overrides), 'image'));
 });
 
+test('enter and tab on a disabled command are left to the caller', () => {
+    const overrides = {
+        commandContext: surface({ hasPoll: true }),
+    };
+    const onKeyDown = vi.fn();
+
+    for (const key of ['Enter', 'Tab']) {
+        const tree = type('/image', { ...overrides, onKeyDown });
+        const event = press(tree, key);
+
+        assert.equal(event.preventDefault.mock.calls.length, 0, key);
+        assert.equal(onImage.mock.calls.length, 0, key);
+    }
+
+    assert.equal(onKeyDown.mock.calls.length, 2);
+});
+
 test('escape keeps the text, and the menu stays dismissed until the token is re-formed', () => {
     const tree = type('/po');
     press(tree, 'Escape');

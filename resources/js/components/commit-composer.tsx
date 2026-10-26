@@ -267,8 +267,12 @@ function CommitComposerBody({
                             maxLength={
                                 isIssue ? maxBodyLength : maxRawBodyLength
                             }
-                            onImage={() => imageInputRef.current?.click()}
-                            onPoll={startPoll}
+                            onImage={
+                                isIssue
+                                    ? undefined
+                                    : () => imageInputRef.current?.click()
+                            }
+                            onPoll={isIssue ? undefined : startPoll}
                             onIssue={(kind, rest) => issue.start(kind, rest)}
                             commandContext={{
                                 surface: 'commit',

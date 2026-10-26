@@ -503,6 +503,11 @@ test('typing a command and a space turns the draft into an issue, and backspace 
         false,
     );
     assert.equal(find('data-test', 'add-poll-button'), undefined);
+    const issueTextarea = view.fields.find(
+        (element) => element.type === MentionTextarea,
+    )!;
+    assert.equal(issueTextarea.props.onImage, undefined);
+    assert.equal(issueTextarea.props.onPoll, undefined);
     assert.equal(view.form.props.onBefore(), false);
 
     keyDown(view, 'Backspace');
@@ -718,9 +723,10 @@ test('passes slash command context and callbacks to the composer textarea', () =
     assert.equal(typeof textarea.props.onPoll, 'function');
     assert.equal(typeof textarea.props.onIssue, 'function');
     assert.equal(
-        (view.fields.find(
-            (element) => element.type === ImagePickerButton,
-        )!.props.inputRef as { current: unknown }).current,
+        (
+            view.fields.find((element) => element.type === ImagePickerButton)!
+                .props.inputRef as { current: unknown }
+        ).current,
         null,
     );
 

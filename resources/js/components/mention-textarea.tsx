@@ -346,12 +346,16 @@ export function MentionTextarea({
             passive: true,
         });
         window.addEventListener('resize', reposition);
+        window.visualViewport?.addEventListener('scroll', reposition);
+        window.visualViewport?.addEventListener('resize', reposition);
 
         return () => {
             window.removeEventListener('scroll', reposition, {
                 capture: true,
             });
             window.removeEventListener('resize', reposition);
+            window.visualViewport?.removeEventListener('scroll', reposition);
+            window.visualViewport?.removeEventListener('resize', reposition);
         };
     }, [token]);
 
@@ -563,8 +567,11 @@ export function MentionTextarea({
     const slashOptionFits = (index: number) => {
         const option = slashOptions[index];
 
+        if (option === undefined || !option.enabled) {
+            return false;
+        }
+
         if (
-            option === undefined ||
             option.command.id !== 'code' ||
             maxLength === undefined ||
             slash === null
