@@ -1,6 +1,6 @@
 import { usePage } from '@inertiajs/react';
 import type { ComponentProps, KeyboardEvent, Ref, SyntheticEvent } from 'react';
-import { useEffect, useEffectEvent, useId, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { index as issueSuggestions } from '@/actions/App/Http/Controllers/IssueSuggestionController';
 import MentionSuggestionController from '@/actions/App/Http/Controllers/MentionSuggestionController';
 import {
@@ -441,10 +441,7 @@ export function MentionTextarea({
     const emojiIndex =
         emojis.length > 0 ? Math.min(activeIndex, emojis.length - 1) : 0;
     const isIssueOpen =
-        issueToken !== null &&
-        position !== null &&
-        issue !== null &&
-        !issueToken.complete;
+        issueToken !== null && position !== null && issue !== null;
 
     const insert = (text: string, separator: string) => {
         const textarea = textareaRef.current;
@@ -499,18 +496,6 @@ export function MentionTextarea({
 
     const selectEmoji = (suggestion: EmojiSuggestion) =>
         insert(suggestion.emoji, '');
-
-    const autoLinkIssue = useEffectEvent(() => {
-        if (issueToken?.complete && issue) {
-            insert(issue.url, '');
-        }
-    });
-
-    useEffect(() => {
-        const frame = requestAnimationFrame(autoLinkIssue);
-
-        return () => cancelAnimationFrame(frame);
-    }, [issueToken, issue]);
 
     const runSlash = (option: SlashOption): boolean => {
         if (slash === null || !option.enabled) {
