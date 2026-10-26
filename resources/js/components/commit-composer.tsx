@@ -61,6 +61,7 @@ import {
 import type { GifProviderKey } from '@/lib/gif-provider-key';
 import { gifFormFields, toCommitGif } from '@/lib/gif-providers';
 import type { GifAttachment } from '@/lib/gif-providers';
+import type { IssueKind } from '@/lib/issue-commands';
 import { hasModKey, useKeyLabels } from '@/lib/keyboard';
 import {
     characterCount,
@@ -611,10 +612,12 @@ function CommitComposerBody({
 export function CommitComposer({
     id = 'body',
     isInDialog = false,
+    issue: initialIssue = null,
     onCommitted,
 }: {
     id?: string;
     isInDialog?: boolean;
+    issue?: IssueKind | null;
     onCommitted?: () => void;
 }) {
     const schedule = useCommitSchedule();
@@ -653,6 +656,7 @@ export function CommitComposer({
             !isScheduling,
         canAttachGif: gifKey !== null && stash.gif === null,
         onAttachGif: () => setGifOpen(true),
+        initialKind: initialIssue,
         onCreated: () => {
             drop();
             focusBody(id);

@@ -39,7 +39,7 @@ const draft = {
     }),
     drop: vi.fn(),
 };
-const user = { id: 'viewer', username: 'viewer', lane: 1 };
+const user = { id: 'viewer', handle: 'viewer', lane: 1 };
 let flash: Record<string, unknown> = {};
 let effects: (() => void)[] = [];
 const http = {

@@ -41,6 +41,7 @@ export function useIssueCommand({
     enabled,
     canAttachGif = false,
     onAttachGif,
+    initialKind = null,
     onCreated,
 }: {
     body: string;
@@ -48,9 +49,12 @@ export function useIssueCommand({
     enabled: boolean;
     canAttachGif?: boolean;
     onAttachGif?: () => void;
+    initialKind?: IssueKind | null;
     onCreated: () => void;
 }) {
-    const [kind, setKind] = useState<IssueKind | null>(null);
+    const [kind, setKind] = useState<IssueKind | null>(
+        enabled ? initialKind : null,
+    );
     const [selected, setSelected] = useState(0);
     const [dismissed, setDismissed] = useState(false);
     const [focused, setFocused] = useState(false);
