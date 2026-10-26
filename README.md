@@ -132,7 +132,7 @@ POST
 {"body":"Hello from my phone"}
 ```
 
-A request with any of these headers has to be signed right. A bad or expired signature is a `401`, never the public view. A request without them always gets the public view, and across a block a signed request gets neither profile: it is a `403`, `user_blocked` for the one who blocked and `user_unavailable` for the other, and their commits are hidden as on the web.
+A request with any of these headers has to be signed right. A bad or expired signature is a `401`, never the public view. A request without them gets the public view on the optional public endpoints; signed-only operations still require a signature. Across a block, a signed request gets neither profile: it is a `403`, `user_blocked` for the one who blocked and `user_unavailable` for the other, and their commits are hidden as on the web.
 
 A key signs in once its user approved it as a device. It doesn't have to be on their GitHub account, and being on it isn't enough, so a key made for the GitHub Action can't use the API. Users see their devices, when each was last used, and revoke them under Settings → Devices (`/settings/devices`). A key that isn't approved, or was revoked, gets a `401` with `device_not_approved`, and the app signs in again.
 
