@@ -283,6 +283,8 @@ The scheduler dispatches the `App\Jobs\EmbedKnowledgeBase` job every hour, so ch
 
 Scheduled imports currently cover `KNOWLEDGE_BASE.md` only. If the knowledge base is split into more files, schedule the job for each source.
 
+Commits are attributed to people only: never add Amp, Claude Code, or any other AI tool as a co-author, and keep their names out of commit attribution (author, committer, and trailers).
+
 ## License
 
 Licensed under MIT, as declared in `composer.json`. Based on [Nuno Maduro's Laravel starter kit](https://github.com/nunomaduro/laravel-starter-kit-inertia-react).
