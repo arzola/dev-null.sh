@@ -14,35 +14,25 @@ vi.doMock('react', () => ({
     useRef: (initial: unknown) => ({ current: initial }),
     useMemo: (factory: () => unknown) => factory(),
     useEffect: () => {},
-    useSyncExternalStore: (_subscribe: unknown, snapshot: () => unknown) =>
-        snapshot(),
+    useSyncExternalStore: (_subscribe: unknown, snapshot: () => unknown) => snapshot(),
     useState: (initial: unknown) => {
         const index = cursor++;
         if (!(index in state)) {
-            state[index] =
-                typeof initial === 'function'
-                    ? (initial as () => unknown)()
-                    : initial;
+            state[index] = typeof initial === 'function' ? (initial as () => unknown)() : initial;
         }
 
         return [
             state[index],
             (next: unknown) => {
-                state[index] =
-                    typeof next === 'function'
-                        ? (next as (current: unknown) => unknown)(state[index])
-                        : next;
+                state[index] = typeof next === 'function' ? (next as (current: unknown) => unknown)(state[index]) : next;
             },
         ];
     },
 }));
 
-const { ImagePickerPreviews } =
-    await import('../../resources/js/components/commit-image-picker');
-const { ImageViewer } =
-    await import('../../resources/js/components/image-viewer');
-const { CommitComposerDialog } =
-    await import('../../resources/js/components/commit-composer-dialog');
+const { ImagePickerPreviews } = await import('../../resources/js/components/commit-image-picker');
+const { ImageViewer } = await import('../../resources/js/components/image-viewer');
+const { CommitComposerDialog } = await import('../../resources/js/components/commit-composer-dialog');
 
 function elements(node: ReactNode): ReactElement<Record<string, unknown>>[] {
     if (!React.isValidElement(node)) {
@@ -53,9 +43,7 @@ function elements(node: ReactNode): ReactElement<Record<string, unknown>>[] {
 
     return [
         element,
-        ...React.Children.toArray(element.props.children as ReactNode).flatMap(
-            elements,
-        ),
+        ...React.Children.toArray(element.props.children as ReactNode).flatMap(elements),
     ];
 }
 
@@ -82,18 +70,10 @@ test('renders preview buttons for draft images and opens them in the image viewe
         }),
     );
 
-    const previewButtons = tree.filter(
-        (el) => el.props['data-test'] === 'preview-image-button',
-    );
+    const previewButtons = tree.filter((el) => el.props['data-test'] === 'preview-image-button');
     assert.equal(previewButtons.length, 2);
-    assert.equal(
-        previewButtons[0].props['aria-label'],
-        'Preview attached image 1',
-    );
-    assert.equal(
-        previewButtons[1].props['aria-label'],
-        'Preview attached image 2',
-    );
+    assert.equal(previewButtons[0].props['aria-label'], 'Preview attached image 1');
+    assert.equal(previewButtons[1].props['aria-label'], 'Preview attached image 2');
 
     let viewer = tree.find((el) => el.type === ImageViewer);
     assert.ok(viewer);
@@ -163,16 +143,13 @@ test('draft images with matching filenames keep independent caption controls', (
         new File(['webp'], 'shot.webp', { type: 'image/webp' }),
         new File(['another png'], 'shot.png', { type: 'image/png' }),
     ];
-    const picker = elements(
-        ImagePickerPreviews({
-            images: files,
-            descriptions: ['First caption', 'Second caption', 'Third caption'],
-            onDescribe: () => {},
-            onRemove: () => {},
-        }),
-    );
-    const images = picker.find((element) => element.type === ImageViewer)!.props
-        .images as ShownImage[];
+    const picker = elements(ImagePickerPreviews({
+        images: files,
+        descriptions: ['First caption', 'Second caption', 'Third caption'],
+        onDescribe: () => {},
+        onRemove: () => {},
+    }));
+    const images = picker.find((element) => element.type === ImageViewer)!.props.images as ShownImage[];
     const viewerCursor = cursor;
 
     const captions = () => {
@@ -187,51 +164,26 @@ test('draft images with matching filenames keep independent caption controls', (
             slideFooter: (props: { slide: { src: string } }) => ReactNode;
         };
 
-        return images.map((image) =>
-            elements(render.slideFooter({ slide: { src: image.url } })),
-        );
+        return images.map((image) => elements(render.slideFooter({ slide: { src: image.url } })));
     };
 
     let rendered = captions();
-    const controls = rendered.map((caption) =>
-        caption.find((element) => element.type === 'button')!,
-    );
-    assert.equal(
-        new Set(controls.map((button) => button.props['aria-controls'])).size,
-        files.length,
-    );
+    const controls = rendered.map((caption) => caption.find((element) => element.type === 'button')!);
+    assert.equal(new Set(controls.map((button) => button.props['aria-controls'])).size, files.length);
 
     (controls[0].props.onClick as () => void)();
     rendered = captions();
-    assert.equal(
-        rendered[0].find((element) => element.type === 'p')?.props.children,
-        'First caption',
-    );
-    assert.equal(
-        rendered[1].some((element) => element.type === 'p'),
-        false,
-    );
-    assert.equal(
-        rendered[2].some((element) => element.type === 'p'),
-        false,
-    );
+    assert.equal(rendered[0].find((element) => element.type === 'p')?.props.children, 'First caption');
+    assert.equal(rendered[1].some((element) => element.type === 'p'), false);
+    assert.equal(rendered[2].some((element) => element.type === 'p'), false);
 
-    (
-        rendered[1].find((element) => element.type === 'button')!.props
-            .onClick as () => void
-    )();
+    (rendered[1].find((element) => element.type === 'button')!.props.onClick as () => void)();
     rendered = captions();
     const activeCaption = rendered[1].find((element) => element.type === 'p')!;
     assert.equal(activeCaption.props.children, 'Second caption');
     assert.equal(activeCaption.props.id, controls[1].props['aria-controls']);
-    assert.equal(
-        rendered[0].some((element) => element.type === 'p'),
-        false,
-    );
-    assert.equal(
-        rendered[2].some((element) => element.type === 'p'),
-        false,
-    );
+    assert.equal(rendered[0].some((element) => element.type === 'p'), false);
+    assert.equal(rendered[2].some((element) => element.type === 'p'), false);
 });
 
 test('removing the currently previewed image closes the viewer', () => {
@@ -253,9 +205,7 @@ test('removing the currently previewed image closes the viewer', () => {
     );
 
     // Preview the first image
-    const previewButtons = tree.filter(
-        (el) => el.props['data-test'] === 'preview-image-button',
-    );
+    const previewButtons = tree.filter((el) => el.props['data-test'] === 'preview-image-button');
     (previewButtons[0].props.onClick as () => void)();
 
     // Verify it is open at index 0
@@ -274,11 +224,7 @@ test('removing the currently previewed image closes the viewer', () => {
     assert.equal(viewer?.props.index, 0);
 
     // Click remove button on the first image
-    const removeButtons = tree.filter(
-        (el) =>
-            typeof el.props['aria-label'] === 'string' &&
-            el.props['aria-label'].startsWith('Remove image'),
-    );
+    const removeButtons = tree.filter((el) => typeof el.props['aria-label'] === 'string' && el.props['aria-label'].startsWith('Remove image'));
     (removeButtons[0].props.onClick as () => void)();
     assert.equal(removedIndex, 0);
 
@@ -313,9 +259,7 @@ test('removing an image preceding the currently previewed image shifts the index
     );
 
     // Preview image 3 (index 2)
-    const previewButtons = tree.filter(
-        (el) => el.props['data-test'] === 'preview-image-button',
-    );
+    const previewButtons = tree.filter((el) => el.props['data-test'] === 'preview-image-button');
     (previewButtons[2].props.onClick as () => void)();
 
     cursor = 0;
@@ -331,11 +275,7 @@ test('removing an image preceding the currently previewed image shifts the index
     assert.equal(viewer?.props.index, 2);
 
     // Remove image 1 (index 0)
-    const removeButtons = tree.filter(
-        (el) =>
-            typeof el.props['aria-label'] === 'string' &&
-            el.props['aria-label'].startsWith('Remove image'),
-    );
+    const removeButtons = tree.filter((el) => typeof el.props['aria-label'] === 'string' && el.props['aria-label'].startsWith('Remove image'));
     (removeButtons[0].props.onClick as () => void)();
 
     // Re-render: viewer index should now be shifted to 1
@@ -373,9 +313,7 @@ test('closing the viewer returns focus to the corresponding preview button', () 
         }),
     );
 
-    const previewBtn = tree.find(
-        (el) => el.props['data-test'] === 'preview-image-button',
-    )!;
+    const previewBtn = tree.find((el) => el.props['data-test'] === 'preview-image-button')!;
     assert.equal(previewBtn.props.id, 'preview-test-id-preview-0');
 
     // Click preview button to open
@@ -419,31 +357,13 @@ test('preserves the original file format and filename when downloading draft ima
 
     const viewer = tree.find((el) => el.type === ImageViewer)!;
     assert.ok(viewer);
-    const downloadFilename = viewer.props.downloadFilename as (
-        image: ShownImage,
-        index: number,
-    ) => string;
+    const downloadFilename = viewer.props.downloadFilename as (image: ShownImage, index: number) => string;
     assert.ok(downloadFilename);
 
-    assert.equal(
-        downloadFilename({ id: 'shot', url: 'blob:1', description: null }, 0),
-        'shot.png',
-    );
-    assert.equal(
-        downloadFilename({ id: 'photo', url: 'blob:2', description: null }, 1),
-        'photo.jpeg',
-    );
-    assert.equal(
-        downloadFilename({ id: 'avatar', url: 'blob:3', description: null }, 2),
-        'avatar.webp',
-    );
-    assert.equal(
-        downloadFilename(
-            { id: 'image-4', url: 'blob:4', description: null },
-            3,
-        ),
-        'image-4.png',
-    );
+    assert.equal(downloadFilename({ id: 'shot', url: 'blob:1', description: null }, 0), 'shot.png');
+    assert.equal(downloadFilename({ id: 'photo', url: 'blob:2', description: null }, 1), 'photo.jpeg');
+    assert.equal(downloadFilename({ id: 'avatar', url: 'blob:3', description: null }, 2), 'avatar.webp');
+    assert.equal(downloadFilename({ id: 'image-4', url: 'blob:4', description: null }, 3), 'image-4.png');
 });
 
 test('ImageViewer passes original filenames to slides and includes Download plugin when downloadUrl is provided', () => {
@@ -459,15 +379,12 @@ test('ImageViewer passes original filenames to slides and includes Download plug
             onView: () => {},
             onClose: () => {},
             downloadUrl: (image) => image.url,
-            downloadFilename: (_image, index) =>
-                index === 0 ? 'original-shot.png' : 'original-shot.jpg',
+            downloadFilename: (_image, index) => (index === 0 ? 'original-shot.png' : 'original-shot.jpg'),
         }),
     );
 
     const lightbox = tree.find((el) => 'slides' in el.props)!;
-    const slides = lightbox.props.slides as Array<{
-        download?: { url: string; filename: string };
-    }>;
+    const slides = lightbox.props.slides as Array<{ download?: { url: string; filename: string } }>;
     assert.equal(slides[0].download?.filename, 'original-shot.png');
     assert.equal(slides[0].download?.url, 'blob:1');
     assert.equal(slides[1].download?.filename, 'original-shot.jpg');
@@ -483,13 +400,9 @@ test('CommitComposerDialog prevents Escape dismissal while image viewer is open 
         }),
     );
 
-    const dialogContent = tree.find(
-        (el) => el.props['data-test'] === 'commit-composer-dialog',
-    )!;
+    const dialogContent = tree.find((el) => el.props['data-test'] === 'commit-composer-dialog')!;
     assert.ok(dialogContent);
-    const onEscapeKeyDown = dialogContent.props.onEscapeKeyDown as (event: {
-        preventDefault: () => void;
-    }) => void;
+    const onEscapeKeyDown = dialogContent.props.onEscapeKeyDown as (event: { preventDefault: () => void }) => void;
     assert.ok(onEscapeKeyDown);
 
     // 1. When image viewer is open in the DOM ([role="dialog"].yarl__root)
@@ -508,11 +421,7 @@ test('CommitComposerDialog prevents Escape dismissal while image viewer is open 
             defaultPrevented = true;
         },
     });
-    assert.equal(
-        defaultPrevented,
-        true,
-        'Escape must be prevented when image viewer is open',
-    );
+    assert.equal(defaultPrevented, true, 'Escape must be prevented when image viewer is open');
 
     // 2. When image viewer is not in the DOM
     defaultPrevented = false;
@@ -525,11 +434,7 @@ test('CommitComposerDialog prevents Escape dismissal while image viewer is open 
             defaultPrevented = true;
         },
     });
-    assert.equal(
-        defaultPrevented,
-        false,
-        'Escape should not be prevented when image viewer is closed',
-    );
+    assert.equal(defaultPrevented, false, 'Escape should not be prevented when image viewer is closed');
 
     // 3. When the issue menu is open
     defaultPrevented = false;
@@ -547,11 +452,7 @@ test('CommitComposerDialog prevents Escape dismissal while image viewer is open 
             defaultPrevented = true;
         },
     });
-    assert.equal(
-        defaultPrevented,
-        true,
-        'Escape must be prevented while the issue menu is open',
-    );
+    assert.equal(defaultPrevented, true, 'Escape must be prevented while the issue menu is open');
 
     vi.unstubAllGlobals();
 });
