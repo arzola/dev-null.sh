@@ -61,7 +61,7 @@ const { Form } = await import('@inertiajs/react');
 const { CommitQuoteButton } =
     await import('../../resources/js/components/commit-quote-button');
 const { ComposerMediaButton } = await import(
-    '../../resources/js/components/composer-media-button'
+    '../../resources/js/components/commit-image-picker'
 );
 const { ImagePickerPreviews } = await import(
     '../../resources/js/components/commit-image-picker'

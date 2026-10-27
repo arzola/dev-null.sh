@@ -49,7 +49,7 @@ vi.doMock('../../resources/js/hooks/use-user', () => ({
 }));
 
 const { GifKeySetting } = await import(
-    '../../resources/js/components/gif-key-setting'
+    '../../resources/js/pages/user-profile/edit'
 );
 const { readGifProviderKey, writeGifProviderKey } = await import(
     '../../resources/js/lib/gif-provider-key'

@@ -1,11 +1,27 @@
 import assert from 'node:assert/strict';
 import { afterEach, beforeEach, test } from 'node:test';
+import type { GifAttachment } from '../../resources/js/lib/gif-providers.ts';
 import {
     clearGifProviderKey,
     readGifProviderKey,
+    readStoredGif,
     subscribeGifProviderKey,
     writeGifProviderKey,
+    writeStoredGif,
 } from '../../resources/js/lib/gif-provider-key.ts';
+
+const gif: GifAttachment = {
+    provider: 'giphy',
+    id: 'xT9IgzoKnwFNmISR8I',
+    url: 'https://media2.giphy.com/media/xT9IgzoKnwFNmISR8I/giphy-downsized-medium.gif?cid=abc123',
+    pageUrl: 'https://giphy.com/gifs/deal-with-it-xT9IgzoKnwFNmISR8I',
+    title: 'Deal With It GIF',
+    username: 'giphy',
+    width: 480,
+    height: 270,
+    previewUrl:
+        'https://media2.giphy.com/media/xT9IgzoKnwFNmISR8I/100.gif?cid=abc123',
+};
 
 let store: Map<string, string>;
 let storageHandlers: Array<(event: StorageEvent) => void>;
@@ -169,4 +185,30 @@ test('reacts to a full storage clear from another tab', () => {
     assert.equal(readGifProviderKey('user-1'), null);
 
     unsubscribe();
+});
+
+test('round-trips a stashed gif', () => {
+    writeStoredGif('stash:u1:commit', gif);
+    assert.deepEqual(readStoredGif('stash:u1:commit'), gif);
+});
+
+await test('clears a stashed gif', () => {
+    writeStoredGif('stash:u1:commit', gif);
+    writeStoredGif('stash:u1:commit', null);
+    assert.equal(readStoredGif('stash:u1:commit'), null);
+});
+
+await test('ignores unreadable stashed values', () => {
+    store.set('stash:u1:reply-1:gif', 'not json');
+    assert.equal(readStoredGif('stash:u1:reply-1'), null);
+    store.set('stash:u1:reply-2:gif', JSON.stringify({ nope: true }));
+    assert.equal(readStoredGif('stash:u1:reply-2'), null);
+});
+
+await test('rejects a stashed gif with an unknown provider', () => {
+    store.set(
+        'stash:u1:reply-3:gif',
+        JSON.stringify({ ...gif, provider: 'nope' }),
+    );
+    assert.equal(readStoredGif('stash:u1:reply-3'), null);
 });

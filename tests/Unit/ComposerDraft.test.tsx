@@ -4,7 +4,7 @@ import * as React from 'react';
 import type { ReactElement, ReactNode } from 'react';
 import { beforeEach, test, vi } from 'vite-plus/test';
 import { cancelImageReads } from '../../resources/js/lib/draft-image-reads';
-import type { GifAttachment } from '../../resources/js/lib/gif-providers/types';
+import type { GifAttachment } from '../../resources/js/lib/gif-providers';
 import type { GifProviderKey } from '../../resources/js/lib/gif-provider-key';
 
 const image = new File(['restored'], 'draft.png', { type: 'image/png' });
@@ -99,7 +99,7 @@ vi.doMock('../../resources/js/hooks/use-stash', () => ({
     discardSeriesStash: vi.fn(),
 }));
 let gifKey: GifProviderKey | null = null;
-vi.doMock('../../resources/js/hooks/use-gif-provider-key', () => ({
+vi.doMock('../../resources/js/lib/gif-provider-key', () => ({
     useGifProviderKey: () => gifKey,
 }));
 
@@ -112,7 +112,7 @@ const { IssueCommandBadge, IssueCommandHint, IssueCommandSuggestions } =
 const { ImageDropOverlay, ImagePickerButton, ImagePickerPreviews } =
     await import('../../resources/js/components/commit-image-picker');
 const { ComposerMediaButton } =
-    await import('../../resources/js/components/composer-media-button');
+    await import('../../resources/js/components/commit-image-picker');
 const { ComposerPreviewBody, PreviewToggle } =
     await import('../../resources/js/components/composer-preview');
 const { MentionTextarea } =

@@ -22,12 +22,13 @@ import CommitReplyController from '@/actions/App/Http/Controllers/CommitReplyCon
 import { ActionTooltip } from '@/components/action-tooltip';
 import { BodyCounter } from '@/components/body-counter';
 import { FoldedCommitBody } from '@/components/commit-body';
-import { CommitGif } from '@/components/commit-gif';
+import { CommitGif, GifAttachmentPreview } from '@/components/commit-gif';
 import {
     ImageDropOverlay,
     ImagePickerPreviews,
     imageErrorFrom,
 } from '@/components/commit-image-picker';
+import { ComposerMediaButton } from '@/components/commit-image-picker';
 import { CommitImages } from '@/components/commit-images';
 import { CommitPastelButton } from '@/components/commit-pastel-button';
 import { CommitRulesDialog, useCommitRules } from '@/components/commit-rules';
@@ -35,13 +36,11 @@ import { CommitSecondaryActions } from '@/components/commit-secondary-actions';
 import { CommitStarButton } from '@/components/commit-star-button';
 import { CommitStatusBadge } from '@/components/commit-status-badge';
 import { useCommitTranslation } from '@/components/commit-translation';
-import { ComposerMediaButton } from '@/components/composer-media-button';
 import {
     ComposerPreviewBody,
     PreviewToggle,
     useComposerPreview,
 } from '@/components/composer-preview';
-import { GifAttachmentPreview } from '@/components/gif-attachment-preview';
 import {
     graphDash,
     graphStrokeWidth,
@@ -71,7 +70,6 @@ import {
     useCommitNotFound,
     useIsCommitDeleted,
 } from '@/hooks/use-deleted-resources';
-import { useGifProviderKey } from '@/hooks/use-gif-provider-key';
 import { useImageAttachments } from '@/hooks/use-image-attachments';
 import { focusCommit } from '@/hooks/use-keyboard-shortcuts';
 import { useLinkCard } from '@/hooks/use-link-card';
@@ -87,6 +85,7 @@ import {
     minBodyLength,
 } from '@/lib/commit';
 import { commitStateKey } from '@/lib/commit-state';
+import { useGifProviderKey } from '@/lib/gif-provider-key';
 import { gifFormFields, toCommitGif } from '@/lib/gif-providers';
 import type { GifProviderId } from '@/lib/gif-providers';
 import { hasModKey } from '@/lib/keyboard';

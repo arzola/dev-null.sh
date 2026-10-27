@@ -6,8 +6,8 @@ import {
     revokeObjectUrls,
 } from '@/components/commit-image-picker';
 import { cancelImageRead, cancelImageReads } from '@/lib/draft-image-reads';
-import type { GifAttachment } from '@/lib/gif-providers/types';
-import { readStoredGif, writeStoredGif } from '@/lib/gif-storage';
+import { readStoredGif, writeStoredGif } from '@/lib/gif-provider-key';
+import type { GifAttachment } from '@/lib/gif-providers';
 import type { StoredImages } from '@/lib/image-storage';
 import {
     deleteStoredImages,

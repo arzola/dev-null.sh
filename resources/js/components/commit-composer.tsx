@@ -6,21 +6,20 @@ import CommitController from '@/actions/App/Http/Controllers/CommitController';
 import ScheduledCommitController from '@/actions/App/Http/Controllers/ScheduledCommitController';
 import { ActionTooltip } from '@/components/action-tooltip';
 import { BodyCounter } from '@/components/body-counter';
-import { CommitGif } from '@/components/commit-gif';
+import { CommitGif, GifAttachmentPreview } from '@/components/commit-gif';
 import {
     ImageDropOverlay,
     ImagePickerPreviews,
     imageErrorFrom,
 } from '@/components/commit-image-picker';
+import { ComposerMediaButton } from '@/components/commit-image-picker';
 import { CommitRulesDialog, useCommitRules } from '@/components/commit-rules';
-import { ComposerMediaButton } from '@/components/composer-media-button';
 import {
     ComposerPollPreview,
     ComposerPreviewBody,
     PreviewToggle,
     useComposerPreview,
 } from '@/components/composer-preview';
-import { GifAttachmentPreview } from '@/components/gif-attachment-preview';
 import { GraphRail, RailAvatar } from '@/components/graph-rail';
 import InputError from '@/components/input-error';
 import type { UseIssueCommandReturn } from '@/components/issue-command';
@@ -40,7 +39,6 @@ import {
 } from '@/components/schedule-picker';
 import { StashLabel } from '@/components/stash-label';
 import { Button } from '@/components/ui/button';
-import { useGifProviderKey } from '@/hooks/use-gif-provider-key';
 import { useImageAttachments } from '@/hooks/use-image-attachments';
 import { useLinkCard } from '@/hooks/use-link-card';
 import type { UseLinkCardReturn } from '@/hooks/use-link-card';
@@ -58,6 +56,7 @@ import {
     maxRawBodyLength,
     minBodyLength,
 } from '@/lib/commit';
+import { useGifProviderKey } from '@/lib/gif-provider-key';
 import type { GifProviderKey } from '@/lib/gif-provider-key';
 import { gifFormFields, toCommitGif } from '@/lib/gif-providers';
 import type { GifAttachment } from '@/lib/gif-providers';

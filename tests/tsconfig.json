@@ -8,9 +8,6 @@
         "Unit/**/*.test.ts",
         "Unit/**/*.test.tsx",
         "../resources/js/types/*.d.ts",
-        "draft-images.config.ts",
-        "commit-gif.config.ts",
-        "gif-picker.config.ts",
-        "gif-key.config.ts"
+        "draft-images.config.ts"
     ]
 }

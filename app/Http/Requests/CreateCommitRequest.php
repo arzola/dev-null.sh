@@ -12,8 +12,7 @@ use App\Enums\PollDuration;
 use App\Models\Commit;
 use App\Models\User;
 use App\Rules\CommitBodyLength;
-use App\Rules\GifMediaUrl;
-use App\Rules\GifPageUrl;
+use App\Rules\GifUrl;
 use App\Rules\VisibleCommit;
 use App\Services\CommitBodies;
 use App\Services\Urls;
@@ -85,8 +84,8 @@ final class CreateCommitRequest extends FormRequest
         return [
             'gif_provider' => ['nullable', 'string', Rule::enum(GifProvider::class), 'required_with:gif_id'],
             'gif_id' => ['nullable', 'string', 'max:64', 'regex:/^[A-Za-z0-9-]+$/', 'prohibits:images,poll', 'required_with:gif_url'],
-            'gif_url' => ['nullable', 'string', 'max:2048', 'required_with:gif_id', new GifMediaUrl($provider)],
-            'gif_page_url' => ['nullable', 'string', 'max:2048', 'required_with:gif_id', new GifPageUrl($provider)],
+            'gif_url' => ['nullable', 'string', 'max:2048', 'required_with:gif_id', new GifUrl($provider)],
+            'gif_page_url' => ['nullable', 'string', 'max:2048', 'required_with:gif_id', new GifUrl($provider, page: true)],
             'gif_title' => ['nullable', 'string', 'max:300'],
             'gif_username' => ['nullable', 'string', 'max:100'],
             'gif_width' => ['nullable', 'integer', 'min:1', 'max:10000', 'required_with:gif_id'],

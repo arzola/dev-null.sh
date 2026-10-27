@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import * as React from 'react';
 import type { ReactElement, ReactNode } from 'react';
 import { afterEach, beforeEach, test, vi } from 'vite-plus/test';
-import type { GifProvider } from '../../resources/js/lib/gif-providers/types';
+import type { GifProvider } from '../../resources/js/lib/gif-providers';
 
 const originalWindow = globalThis.window;
 
@@ -84,7 +84,7 @@ const { GifPickerDialog } = await import(
     '../../resources/js/components/gif-picker-dialog'
 );
 const { ComposerMediaButton } = await import(
-    '../../resources/js/components/composer-media-button'
+    '../../resources/js/components/commit-image-picker'
 );
 const { gifProviderFor } = await import(
     '../../resources/js/lib/gif-providers'
