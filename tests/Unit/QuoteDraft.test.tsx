@@ -199,7 +199,7 @@ test('passes slash command context to the quote composer textarea', () => {
     const commit = {
         id: 'quoted',
         user_id: 'author',
-        user: { username: 'author' },
+        user: { handle: 'author' },
         status: 'approved',
     } as Commit;
     const button = CommitQuoteButton({ commit })!;
