@@ -369,6 +369,7 @@ test('mention results for a stale query are not shown', () => {
     state[7] = {
         key: ':bob',
         users: [{ id: 'bob', handle: 'bob', name: 'Bob', lane: 2 }],
+        organizations: [],
     };
     const tree = type('@ali');
 
@@ -378,7 +379,7 @@ test('mention results for a stale query are not shown', () => {
 });
 
 test('selecting a mention inserts @handle and closes the menu', () => {
-    state[7] = { key: ':::ali', users: [alice] };
+    state[7] = { key: ':::ali', users: [alice], organizations: [] };
     const tree = type('@ali');
     const suggestion = mentionRows(tree)[0]!;
 
