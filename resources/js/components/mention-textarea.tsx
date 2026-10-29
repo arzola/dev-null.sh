@@ -1251,7 +1251,7 @@ export function MentionTextarea({
                                 );
                             })}
                         </ul>
-                        <p className="px-2.5 pt-1 pb-0.5 font-mono text-xs text-muted-foreground">
+                        <p className="shrink-0 border-t px-2.5 py-1.5 font-mono text-xs text-muted-foreground">
                             ↑↓ select · Tab or Enter pick · Esc dismiss
                         </p>
                     </div>,
