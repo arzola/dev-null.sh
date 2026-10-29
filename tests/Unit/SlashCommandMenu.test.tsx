@@ -229,6 +229,16 @@ test('typing / opens the command menu with every available command', () => {
     assert.ok(row(tree, 'code'));
 });
 
+test('shows the keyboard helper under the commands', () => {
+    const tree = type('/');
+
+    assert.ok(
+        elements(tree).some((element) =>
+            String(element.props.children).includes('Tab or Enter pick'),
+        ),
+    );
+});
+
 test('filters the menu by prefix, alias included', () => {
     assert.ok(row(type('/po'), 'poll'));
     assert.equal(row(type('/po'), 'image'), undefined);
