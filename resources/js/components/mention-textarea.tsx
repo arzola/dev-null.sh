@@ -1183,8 +1183,11 @@ export function MentionTextarea({
                 position &&
                 createPortal(
                     <div
-                        className="pointer-events-auto fixed z-50 flex flex-col overflow-hidden rounded-lg border bg-popover text-popover-foreground shadow-[0_12px_32px_-12px_rgb(0_0_0/0.35)] motion-safe:animate-in motion-safe:fade-in-0 motion-safe:zoom-in-95"
-                        style={position}
+                        className="pointer-events-auto fixed z-50 flex max-w-[calc(100vw-1rem)] flex-col overflow-hidden rounded-lg border bg-popover text-popover-foreground shadow-[0_12px_32px_-12px_rgb(0_0_0/0.35)] motion-safe:animate-in motion-safe:fade-in-0 motion-safe:zoom-in-95"
+                        style={{
+                            ...position,
+                            width: Math.max(position.width ?? 0, 384),
+                        }}
                         onMouseDown={(event) => event.preventDefault()}
                         data-slash-suggestions
                         data-test="slash-suggestions"
@@ -1212,7 +1215,7 @@ export function MentionTextarea({
                                         }
                                         onClick={() => runSlash(option)}
                                         className={cn(
-                                            'flex cursor-pointer items-center gap-2.5 rounded-sm px-2.5 py-2',
+                                            'flex cursor-pointer items-center gap-2.5 rounded-sm px-2.5 py-1.5',
                                             {
                                                 'bg-accent':
                                                     index === slashIndex,
@@ -1251,7 +1254,7 @@ export function MentionTextarea({
                                 );
                             })}
                         </ul>
-                        <p className="shrink-0 border-t px-2.5 py-1.5 font-mono text-xs text-muted-foreground">
+                        <p className="shrink-0 border-t px-2.5 py-1.5 font-mono text-xs whitespace-nowrap text-muted-foreground">
                             ↑↓ select · Tab or Enter pick · Esc dismiss
                         </p>
                     </div>,
