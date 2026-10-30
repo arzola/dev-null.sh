@@ -8,7 +8,7 @@ Status: **implemented** metrics are on the Growth page. **Not yet** metrics are 
 
 ## Principles
 
-- **Store as little as possible.** Most metrics are computed from data the app already has (users, commits, stars, follows) and from Fathom, which is anonymous. Only three things were added for metrics: the last day each person was seen, one anonymous count of active people per day, and two anonymous Fathom events for the conversion rate.
+- **Store as little as possible.** Most metrics are computed from data the app already has (users, commits, stars, follows) and from Fathom, which is anonymous. Only three things were added for metrics: the last day each person was seen, one anonymous count of active people per day, and anonymous Fathom events, for the conversion rate and for the link guests can ask for by email.
 - **No personal attribution.** Nobody's referrer, landing page or campaign is stored. Where people come from is read from Fathom, in aggregate.
 - **Bots are left out** everywhere: Tom and @world (`User::BOT_GITHUB_IDS`).
 - **Read trends, not thresholds, at first.** With a few days of history, metrics say little on their own. a16z notes that they only become predictive with a few thousand active users and several cohorts past day 30.
@@ -22,6 +22,8 @@ Each answers the three questions of the [data guidelines](.ai/guidelines/data.bl
 | The last day a person was seen (a date, no time) | `users.last_seen_at`, hidden | Retention and active users can't be derived from anything else: reading alone leaves no trace. Written at most once a day, without touching `updated_at`. | Admins, only as aggregates on the Growth page; the person in their export | With the account |
 | The number of people seen each day | `active_user_counts` (`seen_at`, `count`), no user ids | The daily active users history: `last_seen_at` only keeps each person's latest day, so past days can't be recomputed. Incremented the first time each person is seen in a day, so the count is exact. | Admins, on the Growth page | Never: it is an anonymous count |
 | Three anonymous events, `guest-visit`, `signin-click` and `signup` | Fathom | The conversion rate, counted on both sides by the same tool, and where in between visitors give up. No user id is sent. | Admins, through Fathom | Per Fathom's retention |
+| Three anonymous events, `join-link-sent`, `join-link-visit` and `join-link-signup` | Fathom | Whether the link a guest on a phone can ask for by email brings people back: sent when the email is asked for, when the page opens from its link (`#join-link`, then removed from the address), and when that tab then signs up, next to `signup`. Signing up leaves for GitHub, so Fathom sees the signup as a new visit; the tab remembers the link in its session storage instead. Someone who opens the link in one browser and signs up in another counts as any other signup, so it's a floor. | Admins, through Fathom | Per Fathom's retention |
+| A keyed hash of each address a join link was emailed to | The cache, `join-link:{hash}` | Each address gets the email once a month at most, so the form can't fill someone's inbox. The address itself is only in the queued email, encrypted, until it is sent. | Nobody | After 30 days |
 
 **Seen** means signed in and opening a page or doing something (starring, replying, following) on the web or the installed app, or using the API from the mobile app or the terminal. Posts automated with the GitHub Action count too: someone who publishes, even automatically, is active. What a page reads on its own (polling for notifications, partial reloads, prefetches, JSON reads) doesn't count, or a tab left open would keep its owner active forever.
 
@@ -31,7 +33,7 @@ The funnel follows the people who **signed up in the selected range** (the last 
 
 ### Acquisition
 
-- **Visitors**: people **not signed in** who opened dev-null.sh in the range, counted by Fathom: the browser sends a `guest-visit` event once per session to someone not signed in, and Fathom counts the people who sent it (`unique_conversions`).
+- **Visitors**: people **not signed in** who opened dev-null.sh in the range, counted by Fathom: the browser sends a `guest-visit` event once per session to someone not signed in, and Fathom counts the people who sent it (`unique_conversions`). A browser driven by a program (`navigator.webdriver`) doesn't send it.
 - **Signups**: accounts created in the range, from the database. This is the absolute number.
 - **Conversion rate** = people who sent a `signup` event ÷ people who sent a `guest-visit` event, both from Fathom. The browser sends `signup` once, on the page right after an account is created (the server flashes `signedUp`).
 - Why both sides of the rate come from Fathom: Fathom is blocked by uBlock Origin, Brave and Firefox's tracking protection, which developers use a lot. Signups from the database over visitors from Fathom would overstate the rate by an unknown amount. With both from Fathom, ad blockers hide the same share of each, as long as people who sign up block Fathom as often as other visitors.
@@ -42,6 +44,7 @@ The funnel follows the people who **signed up in the selected range** (the last 
   - The events only exist since the release that added them; the rate reads "–" before.
   - Fathom's API doesn't define `unique_conversions` precisely; check on real data that it counts people, not events.
   - A member signed out (another device, an expired session) counts as a visitor.
+  - Fathom filters bots out of pageviews, not out of events. From 2026-10-29 16:00 UTC, a scraper running a real browser sent thousands of `guest-visit` a day, from desktops all over the world, one profile page each, with no taps or signups, and the conversion rate fell to about 1%. Since then, browsers that say they are automated (`navigator.webdriver`) don't send it. A scraper can hide that, so if visitors jump again with no taps, check `guest-visit` in Fathom by hour and by `pathname`: a crawl hits many pages once each.
   - Events may count against Fathom's monthly quota, which is why `guest-visit` is sent once per session, not on every page.
 
 ### Activation

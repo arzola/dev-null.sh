@@ -6,6 +6,7 @@ namespace App\Actions;
 
 use App\Enums\NotificationType;
 use App\Models\CommitImage;
+use App\Models\CommitReport;
 use App\Models\Conversation;
 use App\Models\ConversationParticipant;
 use App\Models\Device;
@@ -25,6 +26,7 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\LazyCollection;
 use stdClass;
+use Traversable;
 
 /**
  * @phpstan-type ExportPoll array{commit_id: string, duration_minutes: int, opened_at: string|null, options: list<string>, created_at: string}
@@ -44,7 +46,9 @@ use stdClass;
  *     muting: Generator<int, ExportUser>,
  *     blocking: Generator<int, ExportUser>,
  *     dismissed_suggestions: Generator<int, ExportUser>,
+ *     organizations: array<int, array{handle: string, role: string, joined_at: string}>,
  *     messages: Generator<int, ExportMessage>,
+ *     reports: Traversable<int, array<string, mixed>>,
  *     remote_pins: array<int, array{to: string|null, pinned_at: string|null}>,
  *     remote_mutes: array<int, array{to: string|null, muted_until_at: string|null}>,
  *     notifications: Generator<int, array<string, int|string|null>>,
@@ -65,7 +69,7 @@ final readonly class CreateExport
     public function handle(User $user): array
     {
         return [
-            'schema_version' => 3,
+            'schema_version' => 4,
             'exported_at' => now()->toIso8601String(),
             'profile' => [
                 'github_id' => $user->github_id,
@@ -110,7 +114,15 @@ final readonly class CreateExport
             'muting' => $this->handles($user->muting()),
             'blocking' => $this->handles($user->blocking()),
             'dismissed_suggestions' => $this->handles($user->dismissedSuggestions()),
+            'organizations' => $this->organizations($user),
             'messages' => $this->messages($user),
+            'reports' => CommitReport::query()->where('reporter_id', $user->id)->oldest('id')->cursor()->map(fn (CommitReport $report): array => [
+                'commit_id' => $report->commit_id,
+                'reason' => $report->reason,
+                'details' => $report->details,
+                'attachments' => $report->toArray()['attachments'],
+                'created_at' => $report->created_at->toIso8601String(),
+            ])->getIterator(),
             'remote_mutes' => Conversation::query()
                 ->join('conversation_participants as mine', 'mine.conversation_id', '=', 'conversations.id')
                 ->where('mine.user_id', $user->id)
@@ -288,6 +300,24 @@ final readonly class CreateExport
         foreach ($users as $user) {
             yield ['handle' => $user->handle];
         }
+    }
+
+    /**
+     * @return array<int, array{handle: string, role: string, joined_at: string}>
+     */
+    private function organizations(User $user): array
+    {
+        /** @var Collection<int, object{handle: string, role: string, created_at: string}> $memberships */
+        $memberships = $user->organizations()->newPivotQuery()
+            ->join('profiles', 'profiles.id', '=', 'organization_members.organization_id')
+            ->oldest('organization_members.created_at')
+            ->get(['profiles.handle', 'organization_members.role', 'organization_members.created_at']);
+
+        return $memberships->map(fn (object $membership): array => [
+            'handle' => $membership->handle,
+            'role' => $membership->role,
+            'joined_at' => CarbonImmutable::parse($membership->created_at)->toIso8601String(),
+        ])->all();
     }
 
     /**

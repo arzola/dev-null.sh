@@ -20,7 +20,6 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
 
 final readonly class DeleteUser
 {
@@ -38,10 +37,10 @@ final readonly class DeleteUser
      */
     public function handle(User $user): void
     {
-        $imagePaths = DB::transaction(function () use ($user): array {
-            $this->updateCommitHotScores->handle($this->engagedCommitIds($user));
+        DB::transaction(function () use ($user): void {
+            User::query()->whereKey($user->id)->lockForUpdate()->firstOrFail();
 
-            $imagePaths = [...$this->imagePaths($user), ...$this->scheduledImagePaths($user), ...$this->messageImagePaths($user), ...$this->messageVoicePaths($user)];
+            $this->updateCommitHotScores->handle($this->engagedCommitIds($user));
 
             $translationKeys = $this->touchedCommits($user)
                 ->select(['id', 'body'])
@@ -52,6 +51,10 @@ final readonly class DeleteUser
             // links or finds the commit erased. The threads are locked before their replies, so no reply joins them in between.
             $user->commits()->withTrashed()->topLevel()->orderBy('id')->lockForUpdate()->pluck('id');
             $this->touchedCommits($user)->orderBy('id')->lockForUpdate()->pluck('id');
+
+            // Report creation holds shared reporter and commit locks until its attachment paths are saved.
+            $imagePaths = [...$this->reportImagePaths($user), ...$this->imagePaths($user), ...$this->scheduledImagePaths($user), ...$this->messageImagePaths($user), ...$this->messageVoicePaths($user)];
+            resolve(DeleteStoredFiles::class)->retain($imagePaths);
 
             DB::table('commit_topics')->whereIn('commit_id', $this->touchedCommits($user)->select('id'))->delete();
             $user->commits()->withTrashed()->topLevel()->forceDelete();
@@ -67,17 +70,15 @@ final readonly class DeleteUser
 
             $this->deleteOrgs->handle($this->emptyOrgs($user));
 
+            $user->organizations()->detach();
+
             $user->delete();
             $user->profile->delete();
 
             foreach ($translationKeys as $key) {
                 Cache::forget($key);
             }
-
-            return $imagePaths;
         });
-
-        Storage::disk()->delete($imagePaths);
     }
 
     /**
@@ -115,6 +116,18 @@ final readonly class DeleteUser
     private function replies(User $user): HasMany
     {
         return $user->commits()->withTrashed()->whereNotNull('parent_id');
+    }
+
+    /** @return array<int, string> */
+    private function reportImagePaths(User $user): array
+    {
+        return CommitReport::query()
+            ->where('reporter_id', $user->id)
+            ->orWhereIn('commit_id', $user->commits()->withTrashed()->select('id'))
+            ->orWhereIn('commit_id', Commit::query()->withTrashed()->whereIn('root_id', $user->commits()->withTrashed()->topLevel()->select('id'))->select('id'))
+            ->get(['images'])
+            ->flatMap(fn (CommitReport $report): array => array_column($report->images ?? [], 'path'))
+            ->all();
     }
 
     /**

@@ -54,6 +54,7 @@ import InputError from '@/components/input-error';
 import { LinkCardPicker } from '@/components/link-card-picker';
 import { LinkPreview } from '@/components/link-preview';
 import { MentionTextarea } from '@/components/mention-textarea';
+import { ReplyRecipientPicker } from '@/components/reply-recipient-picker';
 import { StashLabel } from '@/components/stash-label';
 import { showTimeout, timeoutFrom } from '@/components/timeout-dialog';
 import { TimestampTooltip } from '@/components/timestamp-tooltip';
@@ -679,6 +680,7 @@ export function ThreadReplyComposer({ thread }: { thread: Thread }) {
 
     return thread.isReplying && !isDeleted(commit) ? (
         <ReplyComposer
+            key={commit.id}
             parent={commit}
             onCancel={thread.cancelReply}
             onReplied={thread.onReplied}
@@ -1312,6 +1314,7 @@ function CommitReply({
                                 <>
                                     <CommitStarButton
                                         commit={reply}
+                                        keyShortcut="s"
                                         className="px-2 py-0.5"
                                     />
                                     <CommitPastelButton
@@ -1332,6 +1335,7 @@ function CommitReply({
     );
 }
 
+/** Composes a reply with optional recipients inherited from the parent, excluding the signed-in user. */
 function ReplyComposer({
     parent,
     onCancel,
@@ -1343,12 +1347,30 @@ function ReplyComposer({
 }) {
     const { user } = useUser();
     const commitNotFound = useCommitNotFound();
+    const participants = Array.from(
+        new Map(
+            [
+                [parent.user.id, parent.user.handle],
+                ...Object.entries(parent.mentions ?? {}).map(([handle, id]) => [
+                    id,
+                    handle,
+                ]),
+            ]
+                .filter(([id]) => id !== user.id)
+                .map(([id, handle]) => [id, { id, handle }]),
+        ).values(),
+    );
+    const hasRecipientChoice = participants.some(
+        ({ id }) => id !== parent.user.id,
+    );
     const {
         body,
         images,
         descriptions,
         isRestored,
         key: stashKey,
+        excludedRecipientIds,
+        updateExcludedRecipientIds,
         updateBody,
         updateImages,
         drop,
@@ -1366,6 +1388,7 @@ function ReplyComposer({
             body: string;
             images: File[];
             image_descriptions: string[];
+            reply_recipients: string[];
             link_preview_url?: string;
             commit_rules_accepted?: boolean;
         },
@@ -1374,6 +1397,7 @@ function ReplyComposer({
         body: '',
         images: [],
         image_descriptions: [],
+        reply_recipients: [],
     });
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const imageInputRef = useRef<HTMLInputElement>(null);
@@ -1435,6 +1459,13 @@ function ReplyComposer({
             body,
             images,
             image_descriptions: descriptions,
+            reply_recipients: participants
+                .filter(
+                    ({ id }) =>
+                        id !== parent.user.id &&
+                        !excludedRecipientIds.includes(id),
+                )
+                .map(({ id }) => id),
             commit_rules_accepted: commitRules.hasAccepted(),
             ...(linkCard.isChosen
                 ? { link_preview_url: linkCard.link ?? '' }
@@ -1484,6 +1515,14 @@ function ReplyComposer({
             <label htmlFor={`reply-${parent.id}`} className="sr-only">
                 Reply to @{parent.user.handle}
             </label>
+            {hasRecipientChoice && (
+                <ReplyRecipientPicker
+                    participants={participants}
+                    authorId={parent.user.id}
+                    excludedIds={excludedRecipientIds}
+                    onExcludedIdsChange={updateExcludedRecipientIds}
+                />
+            )}
             <div className="grid">
                 <MentionTextarea
                     ref={textareaRef}
@@ -1506,7 +1545,11 @@ function ReplyComposer({
                     onPaste={attachments.onPaste}
                     onFocus={isRestored ? moveCaretToEnd : undefined}
                     maxLength={maxRawBodyLength}
-                    placeholder={`Reply to @${parent.user.handle}`}
+                    placeholder={
+                        hasRecipientChoice
+                            ? 'Post your reply'
+                            : `Reply to @${parent.user.handle}`
+                    }
                     className={cn(
                         'col-start-1 row-start-1 block field-sizing-content max-h-[50dvh] min-h-9 w-full resize-none overflow-x-hidden overflow-y-auto bg-transparent px-1 text-base leading-relaxed outline-none placeholder:text-muted-foreground focus-visible:outline-none md:text-[15px]',
                         { invisible: preview.isPreviewing },
@@ -1523,7 +1566,14 @@ function ReplyComposer({
                 )}
             </div>
             <InputError
-                message={errors.body ?? errors.link_preview_url}
+                message={
+                    errors.body ??
+                    errors.reply_recipients ??
+                    Object.entries(errors).find(([key]) =>
+                        key.startsWith('reply_recipients.'),
+                    )?.[1] ??
+                    errors.link_preview_url
+                }
                 className="px-1"
             />
             {!preview.isPreviewing && (

@@ -94,6 +94,7 @@ test('draws the graph of reported commits in a canvas, its rail standing in unti
                         id: 'report-1',
                         reason: 'spam',
                         details: null,
+                        attachments: [],
                         created_at: new Date().toISOString(),
                         commit: commit('one', 1),
                     },
@@ -101,6 +102,7 @@ test('draws the graph of reported commits in a canvas, its rail standing in unti
                         id: 'report-2',
                         reason: 'spam',
                         details: null,
+                        attachments: [],
                         created_at: new Date().toISOString(),
                         commit: commit('two', 2),
                     },
@@ -139,6 +141,7 @@ test('keeps the graph of each report apart, even when two people report the same
         id,
         reason: 'spam',
         details: null,
+        attachments: [],
         created_at: new Date().toISOString(),
         commit: commit('one', 1),
     });

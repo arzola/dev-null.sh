@@ -2,28 +2,34 @@
 
 declare(strict_types=1);
 
+use App\Actions\CreateCommitReport;
 use App\Actions\CreateCommitTranslation;
 use App\Actions\CreateExport;
 use App\Actions\DeleteUser;
-use App\Ai\Agents\CommitTranslator;
+use App\Contracts\Services\TranslationProvider;
 use App\Enums\ModerationReason;
 use App\Enums\NotificationType;
+use App\Enums\OrganizationRole;
 use App\Models\Commit;
 use App\Models\CommitImage;
+use App\Models\CommitReport;
 use App\Models\Device;
 use App\Models\Message;
 use App\Models\MessageVoice;
 use App\Models\Notification;
 use App\Models\Poll;
 use App\Models\PollVote;
+use App\Models\Profile;
 use App\Models\SshKey;
 use App\Models\User;
 use App\Models\UserTimeout;
 use App\Services\CommitTranslations;
 use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\Storage;
 
 it('requires authentication to download personal data', function (): void {
     $this->get(route('export'))->assertRedirectToRoute('home');
@@ -84,7 +90,7 @@ it('downloads a versioned private JSON file with an explicit profile and empty l
     $data = json_decode($response->streamedContent(), true, flags: JSON_THROW_ON_ERROR);
 
     expect($data)->toBe([
-        'schema_version' => 3,
+        'schema_version' => 4,
         'exported_at' => now()->toIso8601String(),
         'profile' => [
             'github_id' => $user->github_id,
@@ -129,7 +135,9 @@ it('downloads a versioned private JSON file with an explicit profile and empty l
         'muting' => [],
         'blocking' => [],
         'dismissed_suggestions' => [],
+        'organizations' => [],
         'messages' => [],
+        'reports' => [],
         'remote_mutes' => [],
         'remote_pins' => [],
         'notifications' => [],
@@ -214,7 +222,8 @@ it('exports all the signed-in users commits including replies, deleted ones, and
     $otherReply = Commit::factory()->for($other)->create(['parent_id' => $approved->id, 'body' => 'Another developer reply body']);
     Commit::factory()->for($other)->pending()->create();
 
-    CommitTranslator::fake([['source_language' => 'en', 'body' => 'Unicode-ondersteuning geleverd 🚀']]);
+    $this->mock(TranslationProvider::class)->shouldReceive('translate')->once()
+        ->andReturn(['source_language' => 'en', 'body' => 'Unicode-ondersteuning geleverd 🚀']);
     resolve(CreateCommitTranslation::class)->handle($approved, 'nl');
 
     $response = $this->actingAs($user)->get(route('export', ['user_id' => $other->id]));
@@ -438,6 +447,23 @@ it('exports ssh key fingerprints and sessions without session ids or payloads', 
         );
 });
 
+it('exports the organizations the user is a member of with their role, first joined first, without their other members', function (): void {
+    $this->freezeSecond();
+    $user = User::factory()->create();
+    $laravel = Profile::factory()->organization()->create(['handle' => 'laravel']);
+    $bref = Profile::factory()->organization()->create(['handle' => 'brefphp']);
+    $bref->admins()->attach($user->id, ['created_at' => now()->subDay()]);
+    $laravel->members()->attach([$user->id => ['role' => OrganizationRole::Member, 'created_at' => now()], User::factory()->create()->id => ['role' => OrganizationRole::Admin, 'created_at' => now()]]);
+
+    $response = $this->actingAs($user)->get(route('export'));
+    $data = json_decode($response->streamedContent(), true, flags: JSON_THROW_ON_ERROR);
+
+    expect($data['organizations'])->toBe([
+        ['handle' => 'brefphp', 'role' => 'admin', 'joined_at' => now()->subDay()->toIso8601String()],
+        ['handle' => 'laravel', 'role' => 'member', 'joined_at' => now()->toIso8601String()],
+    ]);
+});
+
 it('exports the devices approved for the app, oldest first', function (): void {
     $user = User::factory()->create();
     $older = Device::factory()->for($user)->create(['name' => 'devnull on iPad', 'approved_at' => now()->subWeek(), 'last_used_at' => now()->subDay()]);
@@ -561,6 +587,22 @@ it('exports your remote pins without the pins of other members', function (): vo
         ['to' => 'alice', 'pinned_at' => now()->toIso8601String()],
         ['to' => 'org: Release crew', 'pinned_at' => now()->toIso8601String()],
     ]);
+});
+
+it('exports only reports and private attachment references submitted by the user', function (): void {
+    Storage::fake();
+    $user = User::factory()->create();
+    $commit = Commit::factory()->create();
+    resolve(CreateCommitReport::class)->handle($user, $commit, 'other', 'My evidence', [UploadedFile::fake()->image('evidence.png')], ['Private screenshot']);
+    $report = CommitReport::query()->sole();
+    CommitReport::factory()->create(['commit_id' => Commit::factory()->for($user)->create()->id, 'details' => 'Someone else reported me']);
+    $response = $this->actingAs($user)->get(route('export'));
+    $data = json_decode($response->streamedContent(), true, flags: JSON_THROW_ON_ERROR);
+    expect($data['reports'])->toHaveCount(1)
+        ->and($data['reports'][0]['details'])->toBe('My evidence')
+        ->and($data['reports'][0]['attachments'][0]['description'])->toBe('Private screenshot')
+        ->and($response->streamedContent())->not->toContain($report->images[0]['path'], 'Someone else reported me');
+    $this->get($data['reports'][0]['attachments'][0]['url'])->assertOk();
 });
 
 it('exports subscription metadata without delivery endpoints', function (): void {
